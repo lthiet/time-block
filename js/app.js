@@ -339,6 +339,10 @@ function renderAll() {
 // ---------------------------------------------------------------- rendering: settings
 
 function renderSettings() {
+  // New blocks take the colour of the calendar they'll be saved to (e.g. Time Blocking).
+  const targetColor = state.calendars.find((c) => c.id === state.targetId)?.color;
+  if (targetColor) document.documentElement.style.setProperty('--new', targetColor);
+  else document.documentElement.style.removeProperty('--new');
   const sel = $('#targetSelect');
   const writable = state.calendars.filter((c) => c.accessRole === 'owner' || c.accessRole === 'writer');
   sel.replaceChildren(

@@ -8,7 +8,7 @@
   --accent: #2f6fed;
   --accent-ink: #ffffff;
   --accent-soft: #e6eefe;
-  --new: #ff9500; /* new, unsaved blocks (Apple orange) */
+  --new: #e67c73; /* new blocks; replaced at runtime by the target calendar's colour */
   --ok: #16803c;
   --ok-soft: #e5f5ea;
   --warn: #b25e09;
@@ -30,7 +30,6 @@
     --accent: #5b8cff;
     --accent-ink: #0b1020;
     --accent-soft: #1c2a4a;
-    --new: #ff9f0a;
     --ok: #4cc27a;
     --ok-soft: #15291d;
     --warn: #f0a24a;
