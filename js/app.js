@@ -34,6 +34,13 @@ const fmtTime = (d) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute
 const fmtHM = (t) => fmtTime(new Date(`2000-01-01T${t}:00`));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** "Mon, Sep 28" for one-off rows, "Every weekday from Mon, Sep 28 until Fri, Oct 30" for series. */
+function whenLabel(row) {
+  if (!L.isRecurring(row)) return fmtDay(row.date);
+  const until = row.repeat.until ? ` until ${fmtDay(row.repeat.until)}` : '';
+  return `${L.describeRepeat(row.repeat)} from ${fmtDay(L.firstOccurrence(row))}${until}`;
+}
+
 // ---------------------------------------------------------------- state
 
 const state = {
@@ -57,7 +64,18 @@ const state = {
 };
 
 function newRow(over = {}) {
-  return { id: uid(), title: '', date: state.defaultDate, start: '', end: '', force: false, ...over };
+  const row = { id: uid(), title: '', date: state.defaultDate, start: '', end: '', force: false, ...over };
+  row.repeat = cleanRepeat(over.repeat);
+  return row;
+}
+
+function cleanRepeat(r) {
+  if (!r || !['daily', 'weekdays', 'weekly'].includes(r.freq)) return L.noRepeat();
+  return {
+    freq: r.freq,
+    days: Array.isArray(r.days) ? r.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6) : [],
+    until: typeof r.until === 'string' ? r.until : '',
+  };
 }
 
 function loadPersisted() {
@@ -74,7 +92,7 @@ function loadPersisted() {
     if (d && Array.isArray(d.rows)) {
       state.rows = d.rows.map((r) => newRow({
         title: String(r.title || ''), date: r.date || state.defaultDate,
-        start: r.start || '', end: r.end || '', force: !!r.force,
+        start: r.start || '', end: r.end || '', force: !!r.force, repeat: r.repeat,
       }));
       if (d.defaultDate && d.defaultDate >= todayStr()) state.defaultDate = d.defaultDate;
     }
@@ -84,7 +102,7 @@ function loadPersisted() {
 function persistDraft() {
   try {
     const rows = state.rows.filter((r) => !L.isBlank(r) || r.start || r.end)
-      .map(({ title, date, start, end, force }) => ({ title, date, start, end, force }));
+      .map(({ title, date, start, end, force, repeat }) => ({ title, date, start, end, force, repeat }));
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ rows, defaultDate: state.defaultDate }));
   } catch { /* ignore */ }
 }
@@ -148,8 +166,43 @@ function renderRows() {
     syncInput(el.querySelector('.f-date'), row.date);
     syncInput(el.querySelector('.f-start'), row.start);
     syncInput(el.querySelector('.f-end'), row.end);
+    renderRepeat(row, el);
     renderRowStatus(row, el, i);
   });
+}
+
+const DAY_LETTERS = [[1, 'M'], [2, 'T'], [3, 'W'], [4, 'T'], [5, 'F'], [6, 'S'], [0, 'S']];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** Sync the Repeat select and the day-toggle / until sub-line of a row. */
+function renderRepeat(row, el = rowEls.get(row.id)) {
+  if (!el) return;
+  const sel = el.querySelector('.f-repeat');
+  if (sel.value !== row.repeat.freq) sel.value = row.repeat.freq;
+  const line = el.querySelector('.repeat-line');
+  line.hidden = !L.isRecurring(row);
+  if (line.hidden) return;
+  if (!line.firstChild) {
+    line.append(
+      h('span', { class: 'days' }, DAY_LETTERS.map(([d, letter]) => h('button', {
+        type: 'button', class: 'day-toggle', 'data-day': d, title: DAY_NAMES[d], 'aria-label': DAY_NAMES[d],
+      }, letter))),
+      h('label', { class: 'until' }, 'until ', h('input', { type: 'date', class: 'f-until', 'aria-label': 'Repeat until (optional)' })),
+      h('span', { class: 'muted repeat-note' }),
+    );
+  }
+  const days = new Set(L.repeatDays(row.repeat));
+  line.querySelector('.days').hidden = row.repeat.freq !== 'weekly';
+  for (const b of line.querySelectorAll('.day-toggle')) {
+    const on = days.has(Number(b.dataset.day));
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on);
+  }
+  syncInput(line.querySelector('.f-until'), row.repeat.until);
+  const n = L.validateRow({ ...row, title: row.title || 'x' }).length ? 0 : L.occurrenceDates(row).length;
+  line.querySelector('.repeat-note').textContent = row.repeat.until
+    ? `${plural(n, 'occurrence')} · checked through ${fmtDay(row.repeat.until)}`
+    : `no end · next ${L.REPEAT_HORIZON_DAYS / 7} weeks checked (${plural(n, 'occurrence')})`;
 }
 
 function syncInput(input, value) {
@@ -169,18 +222,26 @@ function renderRowStatus(row, el = rowEls.get(row.id)) {
   } else if (s.state === 'checking') {
     box.append(h('span', { class: 'pill idle' }, 'Checking…'));
   } else if (s.state === 'ok') {
-    box.append(h('span', { class: 'pill ok' }, '✓ Free'));
+    box.append(h('span', { class: 'pill ok' },
+      L.isRecurring(row) ? `✓ Free on all ${L.occurrenceDates(row).length} checked days` : '✓ Free'));
   } else if (s.state === 'conflict') {
+    const recurring = L.isRecurring(row);
+    const clashDays = new Set(s.conflicts.map((c) => c.occDate)).size;
+    const shown = s.conflicts.slice(0, MAX_CONFLICTS_SHOWN);
+    const more = s.conflicts.length - shown.length;
     box.append(
-      h('span', { class: 'pill warn' }, `⚠ Conflicts with ${plural(s.conflicts.length, 'item')}`),
-      h('ul', { class: 'conflicts' }, s.conflicts.map(conflictItem)),
+      h('span', { class: 'pill warn' }, recurring
+        ? `⚠ Conflicts on ${clashDays} of ${L.occurrenceDates(row).length} days`
+        : `⚠ Conflicts with ${plural(s.conflicts.length, 'item')}`),
+      h('ul', { class: 'conflicts' }, shown.map((c) => conflictItem(c, recurring)),
+        more > 0 ? h('li', { class: 'muted' }, `+${more} more`) : null),
       h('label', { class: 'force' },
         h('input', {
           type: 'checkbox',
           checked: row.force,
           onchange: (e) => { row.force = e.target.checked; persistDraft(); renderRowStatus(row); renderActions(); renderAgenda(); },
         }),
-        'Save anyway'),
+        recurring ? 'Save the series anyway' : 'Save anyway'),
     );
   }
   const saveError = state.saveErrors.get(row.id);
@@ -190,15 +251,18 @@ function renderRowStatus(row, el = rowEls.get(row.id)) {
   }
 }
 
-function conflictItem(c) {
+const MAX_CONFLICTS_SHOWN = 5;
+
+function conflictItem(c, withDate) {
+  const day = withDate ? h('span', { class: 'occ' }, fmtDay(c.occDate)) : null;
   if (c.kind === 'row') {
-    return h('li', {},
+    return h('li', {}, day,
       h('span', {}, `Row ${c.index + 1}: `, h('b', {}, c.row.title)),
       h('span', { class: 'muted' }, `${fmtHM(c.row.start)}–${fmtHM(c.row.end)} · this batch`));
   }
   const ev = c.event;
   const when = ev.allDay ? 'all day' : `${fmtTime(ev.start)}–${fmtTime(ev.end)}`;
-  return h('li', {},
+  return h('li', {}, day,
     h('span', { class: 'swatch', style: { background: ev.color || 'var(--muted)' } }),
     ev.link ? h('a', { href: ev.link, target: '_blank', rel: 'noopener' }, h('b', {}, ev.title)) : h('b', {}, ev.title),
     h('span', { class: 'muted' }, `${when} · ${ev.calendarName}`));
@@ -351,7 +415,7 @@ function renderAgenda() {
     kind: 'event', ev: e, s: Math.max(0, toMin(e.start)), e: Math.min(24 * 60, toMin(e.end)),
   })).filter((i) => i.e > i.s);
 
-  const drafts = state.rows.filter((r) => r.date === date && !L.validateRow({ ...r, title: r.title || 'x' }).length);
+  const drafts = state.rows.filter((r) => L.occursOn(r, date) && !L.validateRow({ ...r, title: r.title || 'x' }).length);
   for (const r of drafts) {
     const [sh, sm] = r.start.split(':').map(Number);
     const [eh, em] = r.end.split(':').map(Number);
@@ -490,6 +554,11 @@ rowsEl.addEventListener('input', (e) => {
   const t = e.target;
   if (t.classList.contains('f-title')) row.title = t.value;
   else if (t.classList.contains('f-date')) row.date = t.value;
+  else if (t.classList.contains('f-until')) row.repeat.until = t.value;
+  else if (t.classList.contains('f-repeat')) {
+    row.repeat.freq = t.value;
+    if (t.value === 'weekly' && !row.repeat.days.length && row.date) row.repeat.days = [L.weekdayOf(row.date)];
+  }
   else if (t.classList.contains('f-start')) {
     rememberDuration(row);
     const parsed = L.parseTime(t.value);
@@ -505,6 +574,7 @@ rowsEl.addEventListener('input', (e) => {
     rememberDuration(row);
   } else return;
   state.saveErrors.delete(row.id);
+  renderRepeat(row, li);
   if (t.classList.contains('f-date') && state.focusedId === row.id) state.agendaDate = null;
   onRowsChanged({ structural: false });
   if (t.classList.contains('f-date')) loadAgendaDay();
@@ -519,6 +589,19 @@ rowsEl.addEventListener('focusout', (e) => {
 });
 
 rowsEl.addEventListener('click', (e) => {
+  const toggle = e.target.closest('.day-toggle');
+  if (toggle) {
+    const li = toggle.closest('.row');
+    const row = state.rows.find((r) => r.id === li.dataset.id);
+    const d = Number(toggle.dataset.day);
+    const days = new Set(row.repeat.days);
+    days.has(d) ? days.delete(d) : days.add(d);
+    row.repeat.days = [...days].sort();
+    state.saveErrors.delete(row.id);
+    renderRepeat(row, li);
+    onRowsChanged({ structural: false });
+    return;
+  }
   if (!e.target.classList.contains('f-remove')) return;
   const li = e.target.closest('.row');
   const row = state.rows.find((r) => r.id === li.dataset.id);
@@ -646,7 +729,12 @@ async function onSave() {
     const res = await gcal.mapLimit(rows, 3, (row) => gcal.insertEvent(target.id, L.buildEventPayload(row, TZ)));
     const saved = [];
     res.forEach((r, i) => {
-      if (r.ok) saved.push({ calendarId: target.id, eventId: r.value.id, link: r.value.htmlLink, row: { ...rows[i] } });
+      if (r.ok) {
+        saved.push({
+          calendarId: target.id, eventId: r.value.id, link: r.value.htmlLink,
+          row: { ...rows[i], repeat: { ...rows[i].repeat, days: [...rows[i].repeat.days] } },
+        });
+      }
       else state.saveErrors.set(rows[i].id, r.error.message);
     });
     const savedIds = new Set(saved.map((s) => s.row.id));
@@ -663,7 +751,7 @@ async function onSave() {
         h('button', { type: 'button', class: 'btn', onclick: onUndo }, 'Undo'),
         h('ul', {}, saved.map((s) => h('li', {},
           h('a', { href: s.link, target: '_blank', rel: 'noopener' }, s.row.title),
-          ` · ${fmtDay(s.row.date)} ${fmtHM(s.row.start)}–${fmtHM(s.row.end)}`))),
+          ` · ${whenLabel(s.row)} · ${fmtHM(s.row.start)}–${fmtHM(s.row.end)}`))),
         failNote,
       ].filter(Boolean), { sticky: true });
     } else if (failed) {

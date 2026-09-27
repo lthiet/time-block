@@ -59,7 +59,7 @@
       </details>
 
       <div class="grid-head" aria-hidden="true">
-        <span>#</span><span>Title</span><span>Start</span><span>End</span><span>Date</span><span></span>
+        <span>#</span><span>Title</span><span>Start</span><span>End</span><span>Date</span><span>Repeat</span><span></span>
       </div>
       <ol id="rows" class="rows"></ol>
 
@@ -75,9 +75,11 @@
 10:30-11 Email
 tomorrow
 9am-10am Gym
-2026-10-01 14:00-15:00 Review PRs"></textarea>
+2026-10-01 14:00-15:00 Review PRs
+every weekday 7-8 Gym
+every mon,wed 18-19 Run until 2026-12-20"></textarea>
           <div class="quick-foot">
-            <span class="muted small">One block per line: <code>[date] start-end title</code>. A line with only a date (<code>tomorrow</code>, <code>mon</code>, <code>+2</code>) applies to the lines after it.</span>
+            <span class="muted small">One block per line: <code>[date] start-end title</code>. A line with only a date (<code>tomorrow</code>, <code>mon</code>, <code>+2</code>) applies to the lines after it. Repeat with <code>every day|weekday|mon,wed …</code> and optionally end with <code>until &lt;date&gt;</code>.</span>
             <button type="button" class="btn" id="quickAddBtn">Add rows <kbd>Ctrl+Enter</kbd></button>
           </div>
           <ul id="quickErrors" class="quick-errors"></ul>
@@ -118,7 +120,14 @@ tomorrow
       <input class="f-start" type="text" placeholder="9:00" aria-label="Start time" autocomplete="off" spellcheck="false">
       <input class="f-end" type="text" placeholder="10:00" aria-label="End time" autocomplete="off" spellcheck="false">
       <input class="f-date" type="date" aria-label="Date" tabindex="-1">
+      <select class="f-repeat" aria-label="Repeat" tabindex="-1">
+        <option value="">Once</option>
+        <option value="daily">Daily</option>
+        <option value="weekdays">Weekdays</option>
+        <option value="weekly">Weekly…</option>
+      </select>
       <button type="button" class="icon-btn f-remove" aria-label="Remove block" title="Remove" tabindex="-1">×</button>
+      <div class="repeat-line" hidden></div>
       <div class="status"></div>
     </li>
   </template>

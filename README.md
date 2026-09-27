@@ -4,6 +4,7 @@ A small static web app for adding time blocks to Google Calendar in batches. You
 
 - **Batch entry.** Type blocks into a grid. Pressing <kbd>Enter</kbd> adds a new row that starts when the previous block ends. You can also paste a plan as plain text (`9-10:30 Deep work`).
 - **Conflict check.** New blocks are checked against your primary calendar, Time Blocking, and any other calendars you tick. Blocks also overlap-check each other. Events marked Free, events you declined, and all-day events are ignored (you can switch on all-day events).
+- **Recurring blocks.** Set Repeat to Daily, Weekdays or Weekly (pick the days), with an optional end date. A recurring block is saved as one real repeating event, so in Google Calendar you can edit or delete "this / following / all events". Every occurrence is conflict-checked: through the end date if there is one, otherwise over the next 4 weeks. In the paste box, use `every weekday 7-8 Gym` or `every mon,wed 18-19 Run until 2026-12-20`.
 - **Saves to Time Blocking.** Saved blocks are real Google Calendar events, so they sync to every device. You never pick the calendar by hand, and there's an **Undo** after each save.
 - **Day agenda.** The panel shows your existing events and the new blocks side by side, including Time Blocking events you've hidden in Google Calendar. Click an empty slot to add a block at that time.
 - **Bookmarkable.** Use `…/#date=tomorrow` (or `today`, `mon`, `+2`, `2026-10-01`) to open straight into planning a given day. Unsaved rows are kept as a draft in your browser.

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parseTime, resolveDate, parseQuickText, validateRow, findConflicts,
   normalizeEvent, buildEventPayload, assignLanes, rowsRange, addMinutes,
+  occurrenceDates, firstOccurrence, buildRRule, describeRepeat, parseRepeatToken,
 } from '../js/logic.js';
 
 const TODAY = '2026-09-27'; // a Sunday
@@ -45,12 +46,13 @@ test('parseQuickText parses lines, date headers and reports errors', () => {
     '',
   ].join('\n');
   const { rows, errors } = parseQuickText(text, TODAY, TODAY);
-  assert.deepEqual(rows, [
+  assert.deepEqual(rows.map(({ repeat, ...r }) => r), [
     { title: 'Deep work', date: '2026-09-27', start: '09:00', end: '10:30' },
     { title: 'Email', date: '2026-09-27', start: '10:30', end: '11:00' },
     { title: 'Gym', date: '2026-09-28', start: '09:00', end: '10:00' },
     { title: 'Review PRs', date: '2026-10-01', start: '14:00', end: '15:00' },
   ]);
+  assert.ok(rows.every((r) => r.repeat.freq === ''));
   assert.equal(errors.length, 1);
   assert.equal(errors[0].line, 6);
 });
@@ -135,4 +137,104 @@ test('validateRow reports unreadable times', () => {
     validateRow({ title: 'x', date: TODAY, start: 'soon', end: '10:00' }),
     ['Can\'t read start time "soon"'],
   );
+});
+
+// ---------------------------------------------------------------- recurrence
+// TODAY (2026-09-27) is a Sunday.
+const rep = (freq, days = [], until = '') => ({ freq, days, until });
+const recRow = (over) => ({ id: 'r', title: 'R', date: TODAY, start: '09:00', end: '10:00', ...over });
+
+test('occurrenceDates: daily / weekdays / weekly with 28-day horizon', () => {
+  const daily = occurrenceDates(recRow({ repeat: rep('daily') }));
+  assert.equal(daily.length, 28);
+  assert.equal(daily[0], '2026-09-27');
+  assert.equal(daily[27], '2026-10-24');
+  const wd = occurrenceDates(recRow({ repeat: rep('weekdays') }));
+  assert.equal(wd.length, 20);
+  assert.equal(wd[0], '2026-09-28'); // Sunday start is skipped
+  const wk = occurrenceDates(recRow({ repeat: rep('weekly', [1, 3]) }));
+  assert.deepEqual(wk.slice(0, 3), ['2026-09-28', '2026-09-30', '2026-10-05']);
+  assert.equal(wk.length, 8);
+  assert.deepEqual(occurrenceDates(recRow({ repeat: rep('') })), [TODAY]);
+});
+
+test('occurrenceDates respects until (inclusive) beyond the horizon', () => {
+  const d = occurrenceDates(recRow({ repeat: rep('weekly', [5], '2026-12-25') }));
+  assert.equal(d[d.length - 1], '2026-12-25');
+  assert.equal(d.length, 13);
+  assert.deepEqual(occurrenceDates(recRow({ repeat: rep('daily', [], '2026-09-28') })), ['2026-09-27', '2026-09-28']);
+});
+
+test('firstOccurrence moves the series start to the first matching day', () => {
+  assert.equal(firstOccurrence(recRow({ repeat: rep('weekdays') })), '2026-09-28');
+  assert.equal(firstOccurrence(recRow({ repeat: rep('weekly', [3]) })), '2026-09-30');
+  assert.equal(firstOccurrence(recRow({ repeat: rep('daily') })), TODAY);
+});
+
+test('buildRRule', () => {
+  assert.equal(buildRRule(rep('daily')), 'RRULE:FREQ=DAILY');
+  assert.equal(buildRRule(rep('weekdays')), 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR');
+  assert.equal(buildRRule(rep('weekly', [0, 5, 1])), 'RRULE:FREQ=WEEKLY;BYDAY=MO,FR,SU');
+  const until = new Date('2026-12-20T23:59:59').toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  assert.equal(buildRRule(rep('daily', [], '2026-12-20')), `RRULE:FREQ=DAILY;UNTIL=${until}`);
+  assert.match(until, /^\d{8}T\d{6}Z$/);
+});
+
+test('describeRepeat / parseRepeatToken', () => {
+  assert.equal(describeRepeat(rep('weekly', [3, 1])), 'Weekly on Mon, Wed');
+  assert.equal(describeRepeat(rep('weekdays')), 'Every weekday');
+  assert.deepEqual(parseRepeatToken('mon,Wed,friday'), rep('weekly', [1, 3, 5]));
+  assert.equal(parseRepeatToken('weekday').freq, 'weekdays');
+  assert.equal(parseRepeatToken('mon,month'), null);
+});
+
+test('validateRow checks repeat rules', () => {
+  assert.deepEqual(validateRow(recRow({ repeat: rep('weekly', []) })), ['Pick at least one day']);
+  assert.deepEqual(validateRow(recRow({ repeat: rep('daily', [], '2026-09-01') })), ['Repeat end is before start']);
+  assert.deepEqual(validateRow(recRow({ repeat: rep('weekdays', [], TODAY) })), ['No matching days before the end date']);
+  assert.deepEqual(validateRow(recRow({ repeat: rep('weekdays') })), []);
+});
+
+test('findConflicts expands recurring rows and reports the occurrence date', () => {
+  const standupOct1 = normalizeEvent(ev({
+    start: { dateTime: '2026-10-01T09:30:00' }, end: { dateTime: '2026-10-01T10:00:00' },
+  }), cal);
+  const rows = [
+    recRow({ id: 'a', repeat: rep('weekdays') }),
+    recRow({ id: 'b', date: '2026-10-06', start: '09:45', end: '10:15', repeat: rep('') }),
+  ];
+  const c = findConflicts(rows, [standupOct1]);
+  assert.deepEqual(c.get('a').map((x) => [x.kind, x.occDate]), [['event', '2026-10-01'], ['row', '2026-10-06']]);
+  assert.deepEqual(c.get('b').map((x) => [x.kind, x.occDate]), [['row', '2026-10-06']]);
+});
+
+test('rowsRange spans every checked occurrence', () => {
+  const r = rowsRange([recRow({ repeat: rep('weekdays') })]);
+  assert.equal(r.start.getTime(), new Date('2026-09-28T09:00:00').getTime());
+  assert.equal(r.end.getTime(), new Date('2026-10-23T10:00:00').getTime());
+});
+
+test('buildEventPayload for a recurring row', () => {
+  const p = buildEventPayload(recRow({ repeat: rep('weekly', [3], '2026-12-31') }), 'Europe/Zurich');
+  assert.equal(p.start.dateTime, '2026-09-30T09:00:00');
+  assert.equal(p.end.dateTime, '2026-09-30T10:00:00');
+  assert.equal(p.recurrence.length, 1);
+  assert.match(p.recurrence[0], /^RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=\d{8}T\d{6}Z$/);
+  assert.equal(buildEventPayload(recRow({ repeat: rep('') }), 'UTC').recurrence, undefined);
+});
+
+test('parseQuickText: every … and until …', () => {
+  const { rows, errors } = parseQuickText([
+    'every weekday 9-10:30 Deep work',
+    'every mon,wed,fri 18-19 Run until 2026-12-20',
+    'every day 7-8 Gym until +30',
+    'every fortnight 9-10 Nope',
+    'every mon 9-10 Bad end until someday',
+  ].join('\n'), TODAY, TODAY);
+  assert.deepEqual(rows.map((r) => [r.title, r.repeat.freq, r.repeat.days, r.repeat.until]), [
+    ['Deep work', 'weekdays', [], ''],
+    ['Run', 'weekly', [1, 3, 5], '2026-12-20'],
+    ['Gym', 'daily', [], '2026-10-27'],
+  ]);
+  assert.deepEqual(errors.map((e) => e.line), [4, 5]);
 });

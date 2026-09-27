@@ -172,7 +172,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 /* ---------- Rows ---------- */
 .grid-head, .row {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) 64px 64px 128px 24px;
+  grid-template-columns: 20px minmax(0, 1fr) 64px 64px 128px 92px 24px;
   gap: 4px;
   align-items: center;
 }
@@ -185,6 +185,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 .row .num { color: var(--muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
 .row .status { grid-column: 2 / -1; font-size: 12px; }
+.repeat-line { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 12px; }
+.repeat-line .days { display: inline-flex; gap: 1px; }
+.day-toggle {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11px;
+  cursor: pointer;
+}
+.day-toggle:hover { background: var(--surface-2); }
+.day-toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.repeat-line .until { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); }
+.repeat-line .f-until { padding: 1px 4px; font-size: 12px; }
+.conflicts .occ { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 84px; }
 .row .status:empty { display: none; }
 .row.ok { border-left-color: var(--ok); }
 .row.conflict { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); border-left-color: var(--warn); }
@@ -318,7 +334,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .row .f-remove { grid-column: 4; grid-row: 1; }
   .row .f-start { grid-column: 2; }
   .row .f-end { grid-column: 3; }
-  .row .f-date { grid-column: 2 / 4; }
+  .row .f-date { grid-column: 2; }
+  .row .f-repeat { grid-column: 3; }
   .row .status { grid-column: 2 / -1; }
   .actionbar .buttons { width: 100%; }
   .actionbar .buttons .btn { flex: 1; }

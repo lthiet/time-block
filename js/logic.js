@@ -88,6 +88,8 @@ const LINE_RE = new RegExp(
  *   "9:00-10:30 Deep work"
  *   "2026-09-28 14:00-15:00 Review PRs"
  *   "tomorrow 9am-10am Gym"
+ *   "every weekday 9-10:30 Deep work"
+ *   "every mon,wed,fri 18-19 Run until 2026-12-20"
  * A line may also be just a date token, which sets the date for following lines.
  * Returns { rows: [{title,date,start,end}], errors: [{line, text, reason}] }.
  */
@@ -103,7 +105,27 @@ export function parseQuickText(text, defaultDate, today) {
       date = onlyDate;
       return;
     }
-    const m = line.match(LINE_RE);
+    let body = line;
+    let repeat = null;
+    const every = line.match(/^every\s+(\S+)\s+(.+)$/i);
+    if (every) {
+      repeat = parseRepeatToken(every[1]);
+      if (!repeat) {
+        errors.push({ line: i + 1, text: raw, reason: `Unknown repeat "${every[1]}" (use day, weekday or mon,wed,…)` });
+        return;
+      }
+      body = every[2];
+      const until = body.match(/\s+until\s+(\S+)\s*$/i);
+      if (until) {
+        repeat.until = resolveDate(until[1], today);
+        if (!repeat.until) {
+          errors.push({ line: i + 1, text: raw, reason: `Unknown end date "${until[1]}"` });
+          return;
+        }
+        body = body.slice(0, until.index);
+      }
+    }
+    const m = body.match(LINE_RE);
     if (!m) {
       errors.push({ line: i + 1, text: raw, reason: 'Expected "start-end title"' });
       return;
@@ -122,7 +144,7 @@ export function parseQuickText(text, defaultDate, today) {
       errors.push({ line: i + 1, text: raw, reason: 'Invalid time' });
       return;
     }
-    rows.push({ title: m[4].trim(), date: rowDate, start, end });
+    rows.push({ title: m[4].trim(), date: rowDate, start, end, repeat: repeat || noRepeat() });
   });
   return { rows, errors };
 }
@@ -131,7 +153,7 @@ export function parseQuickText(text, defaultDate, today) {
 export function validateRow(row) {
   const issues = [];
   if (!row.title || !row.title.trim()) issues.push('Missing title');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date || '')) issues.push('Missing date');
+  if (!DATE_RE.test(row.date || '')) issues.push('Missing date');
   const hhmm = /^\d{2}:\d{2}$/;
   if (!row.start) issues.push('Missing start');
   else if (!hhmm.test(row.start)) issues.push(`Can't read start time "${row.start}"`);
@@ -140,17 +162,130 @@ export function validateRow(row) {
   if (!issues.length && minutesBetween(row.start, row.end) <= 0) {
     issues.push('End must be after start');
   }
+  if (isRecurring(row) && DATE_RE.test(row.date || '')) {
+    const { freq, days, until } = row.repeat;
+    if (freq === 'weekly' && !days?.length) issues.push('Pick at least one day');
+    else if (until && !DATE_RE.test(until)) issues.push('Invalid repeat end date');
+    else if (until && until < row.date) issues.push('Repeat end is before start');
+    else if (!occurrenceDates(row).length) issues.push('No matching days before the end date');
+  }
   return issues;
 }
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function isBlank(row) {
   return !(row.title && row.title.trim());
 }
 
-export function rowInterval(row) {
+// ---------------------------------------------------------------- recurrence
+
+/** How far ahead an open-ended repeat is conflict-checked. */
+export const REPEAT_HORIZON_DAYS = 28;
+const MAX_OCCURRENCES = 400;
+const DAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
+
+export const noRepeat = () => ({ freq: '', days: [], until: '' });
+
+export function isRecurring(row) {
+  return !!row.repeat?.freq;
+}
+
+export const weekdayOf = (date) => new Date(`${date}T00:00:00`).getDay();
+
+/** Weekday numbers (0 = Sunday) a repeat rule fires on. */
+export function repeatDays(repeat) {
+  switch (repeat?.freq) {
+    case 'daily': return [0, 1, 2, 3, 4, 5, 6];
+    case 'weekdays': return [1, 2, 3, 4, 5];
+    case 'weekly': return [...new Set(repeat.days || [])].sort();
+    default: return [];
+  }
+}
+
+/** Last date that gets conflict-checked for a row. */
+export function checkUntil(row) {
+  if (!isRecurring(row)) return row.date;
+  return row.repeat.until || addDays(row.date, REPEAT_HORIZON_DAYS - 1);
+}
+
+/** Dates (YYYY-MM-DD) of every occurrence to check: just [date] for one-off rows. */
+export function occurrenceDates(row) {
+  if (!isRecurring(row)) return [row.date];
+  const days = new Set(repeatDays(row.repeat));
+  const last = checkUntil(row);
+  const out = [];
+  let dow = weekdayOf(row.date);
+  for (let d = row.date; d <= last && out.length < MAX_OCCURRENCES; d = addDays(d, 1)) {
+    if (days.has(dow)) out.push(d);
+    dow = (dow + 1) % 7;
+  }
+  return out;
+}
+
+/** Whether the row (one-off or series, ignoring the check horizon) has an occurrence on `date`. */
+export function occursOn(row, date) {
+  if (!isRecurring(row)) return row.date === date;
+  if (date < row.date || (row.repeat.until && date > row.repeat.until)) return false;
+  return repeatDays(row.repeat).includes(weekdayOf(date));
+}
+
+/** First date on/after row.date that matches the rule (the series start). */
+export function firstOccurrence(row) {
+  if (!isRecurring(row)) return row.date;
+  const days = new Set(repeatDays(row.repeat));
+  let d = row.date;
+  for (let i = 0; i < 7 && !days.has(weekdayOf(d)); i++) d = addDays(d, 1);
+  return d;
+}
+
+export function buildRRule(repeat) {
+  const parts = [];
+  if (repeat.freq === 'daily') parts.push('FREQ=DAILY');
+  else {
+    const days = new Set(repeatDays(repeat));
+    parts.push('FREQ=WEEKLY', `BYDAY=${MONDAY_FIRST.filter((d) => days.has(d)).map((d) => DAY_CODES[d]).join(',')}`);
+  }
+  if (repeat.until) {
+    // UNTIL must be UTC for timed events; use the end of the local day.
+    const utc = new Date(`${repeat.until}T23:59:59`).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    parts.push(`UNTIL=${utc}`);
+  }
+  return `RRULE:${parts.join(';')}`;
+}
+
+/** Short label like "Every weekday" or "Weekly on Mon, Wed" (without the end date). */
+export function describeRepeat(repeat) {
+  switch (repeat?.freq) {
+    case 'daily': return 'Daily';
+    case 'weekdays': return 'Every weekday';
+    case 'weekly': {
+      const days = new Set(repeatDays(repeat));
+      return `Weekly on ${MONDAY_FIRST.filter((d) => days.has(d)).map((d) => DAY_SHORT[d]).join(', ')}`;
+    }
+    default: return '';
+  }
+}
+
+/** Parse "day", "weekdays" or "mon,wed,fri" (the word after "every") into a repeat rule, or null. */
+export function parseRepeatToken(token) {
+  const t = token.toLowerCase();
+  if (t === 'day' || t === 'daily') return { freq: 'daily', days: [], until: '' };
+  if (t === 'weekday' || t === 'weekdays') return { freq: 'weekdays', days: [], until: '' };
+  const days = t.split(',').filter(Boolean)
+    .map((p) => WEEKDAYS.findIndex((w) => p === w || p === w.slice(0, 3)));
+  if (!days.length || days.includes(-1)) return null;
+  return { freq: 'weekly', days: [...new Set(days)].sort(), until: '' };
+}
+
+// ---------------------------------------------------------------- conflicts
+
+export function rowInterval(row, date = row.date) {
   return {
-    start: new Date(`${row.date}T${row.start}:00`),
-    end: new Date(`${row.date}T${row.end}:00`),
+    start: new Date(`${date}T${row.start}:00`),
+    end: new Date(`${date}T${row.end}:00`),
   };
 }
 
@@ -185,61 +320,72 @@ export function normalizeEvent(ev, cal, { includeAllDay = false } = {}) {
   };
 }
 
+function occurrenceIntervals(row) {
+  return occurrenceDates(row).map((date) => ({ date, ...rowInterval(row, date) }));
+}
+
 /**
- * Find conflicts for each valid row against existing events and other rows.
- * `rows` items must have an `id`. Invalid rows are skipped (never reported as conflicts).
- * Returns Map(rowId -> [{kind:'event', event} | {kind:'row', index, row}]).
+ * Find conflicts for each valid row (every checked occurrence, for repeating rows) against
+ * existing events and other rows. `rows` items must have an `id`. Invalid rows are skipped.
+ * Returns Map(rowId -> [{kind:'event', event, occDate, start} | {kind:'row', index, row, occDate, start}]).
  */
 export function findConflicts(rows, events) {
   const result = new Map();
   const valid = rows
-    .map((row, index) => ({ row, index, iv: validateRow(row).length ? null : rowInterval(row) }))
-    .filter((r) => r.iv);
+    .map((row, index) => ({ row, index, ivs: validateRow(row).length ? null : occurrenceIntervals(row) }))
+    .filter((r) => r.ivs);
   for (const a of valid) {
     const list = [];
-    for (const ev of events) {
-      if (overlaps(a.iv, ev)) list.push({ kind: 'event', event: ev });
+    for (const iv of a.ivs) {
+      for (const ev of events) {
+        if (overlaps(iv, ev)) list.push({ kind: 'event', event: ev, occDate: iv.date, start: ev.start });
+      }
+      for (const b of valid) {
+        if (b === a) continue;
+        const hit = b.ivs.find((biv) => overlaps(iv, biv));
+        if (hit) list.push({ kind: 'row', index: b.index, row: b.row, occDate: iv.date, start: hit.start });
+      }
     }
-    for (const b of valid) {
-      if (b !== a && overlaps(a.iv, b.iv)) list.push({ kind: 'row', index: b.index, row: b.row });
-    }
-    list.sort((x, y) => startOf(x) - startOf(y));
+    list.sort((x, y) => x.start - y.start);
     result.set(a.row.id, list);
   }
   return result;
 }
 
-function startOf(c) {
-  return c.kind === 'event' ? c.event.start.getTime() : rowInterval(c.row).start.getTime();
-}
-
-/** Time range [min start, max end] across valid rows, or null. */
+/** Time range [min start, max end] across all checked occurrences of valid rows, or null. */
 export function rowsRange(rows) {
   let min = null;
   let max = null;
   for (const row of rows) {
     if (validateRow(row).length) continue;
-    const iv = rowInterval(row);
-    if (!min || iv.start < min) min = iv.start;
-    if (!max || iv.end > max) max = iv.end;
+    const dates = occurrenceDates(row);
+    const first = rowInterval(row, dates[0]);
+    const last = rowInterval(row, dates[dates.length - 1]);
+    if (!min || first.start < min) min = first.start;
+    if (!max || last.end > max) max = last.end;
   }
   return min ? { start: min, end: max } : null;
 }
 
 /** Stable signature of the rows' checkable content (to detect edits after a check). */
 export function rowsSignature(rows, extra = '') {
-  return JSON.stringify([extra, rows.map((r) => [r.id, r.title.trim(), r.date, r.start, r.end])]);
+  return JSON.stringify([extra, rows.map((r) => [
+    r.id, r.title.trim(), r.date, r.start, r.end, isRecurring(r) ? r.repeat : null,
+  ])]);
 }
 
 export const APP_TAG = 'time-block-app';
 
 export function buildEventPayload(row, timeZone) {
-  return {
+  const date = firstOccurrence(row);
+  const payload = {
     summary: row.title.trim(),
-    start: { dateTime: `${row.date}T${row.start}:00`, timeZone },
-    end: { dateTime: `${row.date}T${row.end}:00`, timeZone },
+    start: { dateTime: `${date}T${row.start}:00`, timeZone },
+    end: { dateTime: `${date}T${row.end}:00`, timeZone },
     extendedProperties: { private: { source: APP_TAG } },
   };
+  if (isRecurring(row)) payload.recurrence = [buildRRule(row.repeat)];
+  return payload;
 }
 
 /**
