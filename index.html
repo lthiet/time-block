@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Time Block</title>
+  <meta name="description" content="Batch-create time blocks in your Google Calendar with conflict checks.">
+  <meta name="theme-color" content="#2f6fed">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="22" height="22">
+      <span>Time Block</span>
+    </div>
+    <div class="datebar" role="group" aria-label="Planning date">
+      <button type="button" class="icon-btn" id="prevDay" title="Previous day (Alt+←)" aria-label="Previous day">‹</button>
+      <input type="date" id="defaultDate" aria-label="Planning date">
+      <button type="button" class="icon-btn" id="nextDay" title="Next day (Alt+→)" aria-label="Next day">›</button>
+      <button type="button" class="chip-btn" id="todayBtn">Today</button>
+      <button type="button" class="chip-btn" id="tomorrowBtn">Tomorrow</button>
+    </div>
+    <div class="account">
+      <span id="accountLabel" class="muted"></span>
+      <button type="button" class="btn" id="signInBtn">Sign in with Google</button>
+      <button type="button" class="btn ghost" id="signOutBtn" hidden>Sign out</button>
+    </div>
+  </header>
+
+  <div id="setupBanner" class="banner warn" hidden>
+    <strong>Setup needed:</strong> paste your OAuth Client ID into <code>config.js</code>. See the README for the 5-minute Google Cloud setup.
+  </div>
+
+  <main class="layout">
+    <section class="panel entry" aria-label="Time blocks">
+      <details class="settings" id="settings">
+        <summary>
+          <span>Save to <strong id="targetSummary">—</strong></span>
+          <span class="muted" id="checkSummary"></span>
+        </summary>
+        <div class="settings-body">
+          <label class="field">
+            <span>Save blocks to</span>
+            <select id="targetSelect"></select>
+          </label>
+          <fieldset class="field">
+            <legend>Check conflicts against</legend>
+            <div id="checkList" class="check-list"><span class="muted">Sign in to load your calendars.</span></div>
+          </fieldset>
+          <label class="inline">
+            <input type="checkbox" id="includeAllDay"> Treat all-day events as conflicts
+          </label>
+        </div>
+      </details>
+
+      <div class="grid-head" aria-hidden="true">
+        <span>#</span><span>Title</span><span>Start</span><span>End</span><span>Date</span><span></span>
+      </div>
+      <ol id="rows" class="rows"></ol>
+
+      <div class="row-actions">
+        <button type="button" class="btn ghost" id="addRowBtn">+ Add block <kbd>Enter</kbd></button>
+        <button type="button" class="btn ghost" id="clearBtn">Clear all</button>
+      </div>
+
+      <details class="quick" id="quick">
+        <summary>Paste a plan</summary>
+        <div class="quick-body">
+          <textarea id="quickText" rows="6" spellcheck="false" placeholder="9-10:30 Deep work
+10:30-11 Email
+tomorrow
+9am-10am Gym
+2026-10-01 14:00-15:00 Review PRs"></textarea>
+          <div class="quick-foot">
+            <span class="muted small">One block per line: <code>[date] start-end title</code>. A line with only a date (<code>tomorrow</code>, <code>mon</code>, <code>+2</code>) applies to the lines after it.</span>
+            <button type="button" class="btn" id="quickAddBtn">Add rows <kbd>Ctrl+Enter</kbd></button>
+          </div>
+          <ul id="quickErrors" class="quick-errors"></ul>
+        </div>
+      </details>
+
+      <div class="actionbar">
+        <div id="summary" class="summary" aria-live="polite"></div>
+        <div class="buttons">
+          <button type="button" class="btn" id="checkBtn">Check conflicts</button>
+          <button type="button" class="btn primary" id="saveBtn" title="Ctrl+Enter">Save</button>
+        </div>
+      </div>
+      <div id="flash" class="flash" aria-live="polite" hidden></div>
+    </section>
+
+    <aside class="panel agenda" aria-label="Day agenda">
+      <div class="agenda-head">
+        <button type="button" class="icon-btn" id="agendaPrev" aria-label="Previous day">‹</button>
+        <h2 id="agendaTitle">—</h2>
+        <button type="button" class="icon-btn" id="agendaNext" aria-label="Next day">›</button>
+      </div>
+      <div id="agendaAllDay" class="agenda-allday"></div>
+      <div id="agendaNote" class="muted small agenda-note"></div>
+      <div id="timeline" class="timeline" title="Click an empty slot to add a block"></div>
+      <div id="legend" class="legend"></div>
+    </aside>
+  </main>
+
+  <footer class="foot muted small">
+    Type times like <kbd>9</kbd> <kbd>930</kbd> <kbd>2pm</kbd> · <kbd>Enter</kbd> next / new row · <kbd>Ctrl+Enter</kbd> check → save · <kbd>Backspace</kbd> on an empty title removes the row · click the timeline to add a block
+  </footer>
+
+  <template id="rowTpl">
+    <li class="row">
+      <span class="num"></span>
+      <input class="f-title" type="text" placeholder="What's the block?" aria-label="Title" autocomplete="off">
+      <input class="f-start" type="text" placeholder="9:00" aria-label="Start time" autocomplete="off" spellcheck="false">
+      <input class="f-end" type="text" placeholder="10:00" aria-label="End time" autocomplete="off" spellcheck="false">
+      <input class="f-date" type="date" aria-label="Date" tabindex="-1">
+      <button type="button" class="icon-btn f-remove" aria-label="Remove block" title="Remove" tabindex="-1">×</button>
+      <div class="status"></div>
+    </li>
+  </template>
+</body>
+</html>

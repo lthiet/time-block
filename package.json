@@ -1,0 +1,9 @@
+{
+  "name": "time-block",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python -m http.server 8080"
+  }
+}
