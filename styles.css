@@ -223,15 +223,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 
 .row-actions { display: flex; gap: 4px; margin-top: 6px; }
 
-/* ---------- Quick paste ---------- */
-.quick { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 4px; }
-.quick summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
-.quick-body { display: grid; gap: 6px; margin-top: 4px; }
-.quick textarea { width: 100%; resize: vertical; font: 12px ui-monospace, "Cascadia Mono", Consolas, monospace; }
-.quick-foot { display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-.quick-errors { margin: 0; padding-left: 18px; color: var(--bad); font-size: 13px; }
-.quick-errors:empty { display: none; }
-
 /* ---------- Action bar ---------- */
 .actionbar {
   display: flex;

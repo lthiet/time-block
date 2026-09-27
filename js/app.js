@@ -1190,25 +1190,6 @@ function wire() {
   $('#checkBtn').addEventListener('click', onCheck);
   $('#saveBtn').addEventListener('click', onSave);
 
-  const addQuick = () => {
-    const { rows, errors } = L.parseQuickText($('#quickText').value, state.defaultDate, todayStr());
-    $('#quickErrors').replaceChildren(...errors.map((er) => h('li', {}, `Line ${er.line}: ${er.reason} — “${er.text.trim()}”`)));
-    if (!rows.length) return;
-    state.rows = state.rows.filter((r) => !L.isBlank(r) || r.start || r.end);
-    state.rows.push(...rows.map((r) => newRow(r)));
-    if (!errors.length) $('#quickText').value = '';
-    onRowsChanged();
-    flash('info', `Added ${plural(rows.length, 'block')} from your plan.`);
-  };
-  $('#quickAddBtn').addEventListener('click', addQuick);
-  $('#quickText').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      e.stopPropagation();
-      addQuick();
-    }
-  });
-
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();

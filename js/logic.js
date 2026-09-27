@@ -77,78 +77,6 @@ export function parseTime(str) {
   return `${pad(h)}:${pad(min)}`;
 }
 
-const TIME = String.raw`\d{1,2}(?:[:.h]?\d{2})?\s*(?:am|pm|a|p)?`;
-const LINE_RE = new RegExp(
-  String.raw`^(?:(\S+)\s+)?(${TIME})\s*(?:-|–|—|to)\s*(${TIME})\s+(.+)$`,
-  'i',
-);
-
-/**
- * Parse quick-entry text, one block per line:
- *   "9:00-10:30 Deep work"
- *   "2026-09-28 14:00-15:00 Review PRs"
- *   "tomorrow 9am-10am Gym"
- *   "every weekday 9-10:30 Deep work"
- *   "every mon,wed,fri 18-19 Run until 2026-12-20"
- * A line may also be just a date token, which sets the date for following lines.
- * Returns { rows: [{title,date,start,end}], errors: [{line, text, reason}] }.
- */
-export function parseQuickText(text, defaultDate, today) {
-  const rows = [];
-  const errors = [];
-  let date = defaultDate;
-  text.split(/\r?\n/).forEach((raw, i) => {
-    const line = raw.trim().replace(/^[-*•]\s+/, '');
-    if (!line || line.startsWith('#')) return;
-    const onlyDate = resolveDate(line.replace(/:$/, ''), today);
-    if (onlyDate) {
-      date = onlyDate;
-      return;
-    }
-    let body = line;
-    let repeat = null;
-    const every = line.match(/^every\s+(\S+)\s+(.+)$/i);
-    if (every) {
-      repeat = parseRepeatToken(every[1]);
-      if (!repeat) {
-        errors.push({ line: i + 1, text: raw, reason: `Unknown repeat "${every[1]}" (use day, weekday or mon,wed,…)` });
-        return;
-      }
-      body = every[2];
-      const until = body.match(/\s+until\s+(\S+)\s*$/i);
-      if (until) {
-        repeat.until = resolveDate(until[1], today);
-        if (!repeat.until) {
-          errors.push({ line: i + 1, text: raw, reason: `Unknown end date "${until[1]}"` });
-          return;
-        }
-        body = body.slice(0, until.index);
-      }
-    }
-    const m = body.match(LINE_RE);
-    if (!m) {
-      errors.push({ line: i + 1, text: raw, reason: 'Expected "start-end title"' });
-      return;
-    }
-    let rowDate = date;
-    if (m[1]) {
-      rowDate = resolveDate(m[1], today);
-      if (!rowDate) {
-        errors.push({ line: i + 1, text: raw, reason: `Unknown date "${m[1]}"` });
-        return;
-      }
-    }
-    const start = parseTime(m[2]);
-    const end = parseTime(m[3]);
-    if (!start || !end) {
-      errors.push({ line: i + 1, text: raw, reason: 'Invalid time' });
-      return;
-    }
-    rows.push({ title: m[4].trim(), date: rowDate, start, end, repeat: repeat || noRepeat() });
-  });
-  return { rows, errors };
-}
-
 /** Returns a list of problems with a row; empty if valid. */
 export function validateRow(row) {
   const issues = [];
@@ -267,17 +195,6 @@ export function describeRepeat(repeat) {
     }
     default: return '';
   }
-}
-
-/** Parse "day", "weekdays" or "mon,wed,fri" (the word after "every") into a repeat rule, or null. */
-export function parseRepeatToken(token) {
-  const t = token.toLowerCase();
-  if (t === 'day' || t === 'daily') return { freq: 'daily', days: [], until: '' };
-  if (t === 'weekday' || t === 'weekdays') return { freq: 'weekdays', days: [], until: '' };
-  const days = t.split(',').filter(Boolean)
-    .map((p) => WEEKDAYS.findIndex((w) => p === w || p === w.slice(0, 3)));
-  if (!days.length || days.includes(-1)) return null;
-  return { freq: 'weekly', days: [...new Set(days)].sort(), until: '' };
 }
 
 // ---------------------------------------------------------------- conflicts

@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseTime, resolveDate, parseQuickText, validateRow, findConflicts,
+  parseTime, resolveDate, validateRow, findConflicts,
   normalizeEvent, buildEventPayload, assignLanes, rowsRange, addMinutes,
-  occurrenceDates, firstOccurrence, buildRRule, describeRepeat, parseRepeatToken,
+  occurrenceDates, firstOccurrence, buildRRule, describeRepeat,
 } from '../js/logic.js';
 
 const TODAY = '2026-09-27'; // a Sunday
@@ -33,28 +33,6 @@ test('resolveDate handles keywords, offsets and weekdays', () => {
   assert.equal(resolveDate('2026-10-01', TODAY), '2026-10-01');
   assert.equal(resolveDate('2026-02-30', TODAY), null);
   assert.equal(resolveDate('month', TODAY), null);
-});
-
-test('parseQuickText parses lines, date headers and reports errors', () => {
-  const text = [
-    '9:00-10:30 Deep work',
-    '- 10:30 to 11 Email',
-    'tomorrow',
-    '9am-10am Gym',
-    '2026-10-01 14:00–15:00 Review PRs',
-    'garbage line',
-    '',
-  ].join('\n');
-  const { rows, errors } = parseQuickText(text, TODAY, TODAY);
-  assert.deepEqual(rows.map(({ repeat, ...r }) => r), [
-    { title: 'Deep work', date: '2026-09-27', start: '09:00', end: '10:30' },
-    { title: 'Email', date: '2026-09-27', start: '10:30', end: '11:00' },
-    { title: 'Gym', date: '2026-09-28', start: '09:00', end: '10:00' },
-    { title: 'Review PRs', date: '2026-10-01', start: '14:00', end: '15:00' },
-  ]);
-  assert.ok(rows.every((r) => r.repeat.freq === ''));
-  assert.equal(errors.length, 1);
-  assert.equal(errors[0].line, 6);
 });
 
 test('validateRow', () => {
@@ -180,12 +158,9 @@ test('buildRRule', () => {
   assert.match(until, /^\d{8}T\d{6}Z$/);
 });
 
-test('describeRepeat / parseRepeatToken', () => {
+test('describeRepeat', () => {
   assert.equal(describeRepeat(rep('weekly', [3, 1])), 'Weekly on Mon, Wed');
   assert.equal(describeRepeat(rep('weekdays')), 'Every weekday');
-  assert.deepEqual(parseRepeatToken('mon,Wed,friday'), rep('weekly', [1, 3, 5]));
-  assert.equal(parseRepeatToken('weekday').freq, 'weekdays');
-  assert.equal(parseRepeatToken('mon,month'), null);
 });
 
 test('validateRow checks repeat rules', () => {
@@ -221,20 +196,4 @@ test('buildEventPayload for a recurring row', () => {
   assert.equal(p.recurrence.length, 1);
   assert.match(p.recurrence[0], /^RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=\d{8}T\d{6}Z$/);
   assert.equal(buildEventPayload(recRow({ repeat: rep('') }), 'UTC').recurrence, undefined);
-});
-
-test('parseQuickText: every … and until …', () => {
-  const { rows, errors } = parseQuickText([
-    'every weekday 9-10:30 Deep work',
-    'every mon,wed,fri 18-19 Run until 2026-12-20',
-    'every day 7-8 Gym until +30',
-    'every fortnight 9-10 Nope',
-    'every mon 9-10 Bad end until someday',
-  ].join('\n'), TODAY, TODAY);
-  assert.deepEqual(rows.map((r) => [r.title, r.repeat.freq, r.repeat.days, r.repeat.until]), [
-    ['Deep work', 'weekdays', [], ''],
-    ['Run', 'weekly', [1, 3, 5], '2026-12-20'],
-    ['Gym', 'daily', [], '2026-10-27'],
-  ]);
-  assert.deepEqual(errors.map((e) => e.line), [4, 5]);
 });

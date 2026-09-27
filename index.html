@@ -68,24 +68,6 @@
         <button type="button" class="btn ghost" id="clearBtn">Clear all</button>
       </div>
 
-      <details class="quick" id="quick">
-        <summary>Paste a plan</summary>
-        <div class="quick-body">
-          <textarea id="quickText" rows="6" spellcheck="false" placeholder="9-10:30 Deep work
-10:30-11 Email
-tomorrow
-09-10 Gym
-2026-10-01 14:00-15:00 Review PRs
-every weekday 7-8 Gym
-every mon,wed 18-19 Run until 2026-12-20"></textarea>
-          <div class="quick-foot">
-            <span class="muted small">One block per line: <code>[date] start-end title</code>. A line with only a date (<code>tomorrow</code>, <code>mon</code>, <code>+2</code>) applies to the lines after it. Repeat with <code>every day|weekday|mon,wed …</code> and optionally end with <code>until &lt;date&gt;</code>.</span>
-            <button type="button" class="btn" id="quickAddBtn">Add rows <kbd>Ctrl+Enter</kbd></button>
-          </div>
-          <ul id="quickErrors" class="quick-errors"></ul>
-        </div>
-      </details>
-
       <div class="actionbar">
         <div id="summary" class="summary" aria-live="polite"></div>
         <div class="buttons">
