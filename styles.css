@@ -133,13 +133,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  /* Desktop: block list on the left third, calendar on the right two thirds. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 10px;
   padding: 10px 12px;
-  max-width: 1200px;
+  max-width: 1680px;
   margin: 0 auto;
   align-items: start;
 }
+/* The block list switches to two-line rows whenever its column is narrow. */
+.entry { container-type: inline-size; }
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -366,10 +369,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .legend span { display: inline-flex; gap: 4px; align-items: center; }
 .legend .draft-swatch { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); border-left: 3px solid var(--accent); outline: 1px dashed var(--accent); outline-offset: -1px; }
 
-/* Week view: the calendar spans the full width below the block list. */
-.layout.week-view { grid-template-columns: minmax(0, 1fr); }
-.layout.week-view .agenda { position: static; }
-.layout.week-view .timeline { max-height: calc(100vh - 110px); }
 
 .foot { text-align: center; padding: 2px 12px 12px; font-size: 11px; }
 
@@ -383,6 +382,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .topbar { padding: 6px 12px; position: static; }
   .account { margin-left: 0; width: 100%; justify-content: space-between; }
   .layout { padding: 8px 12px; }
+  .actionbar .buttons { width: 100%; }
+  .actionbar .buttons .btn { flex: 1; }
+  .foot { display: none; }
+}
+@container (max-width: 600px) {
   .grid-head { display: none; }
   .row {
     grid-template-columns: 18px minmax(0, 1fr) minmax(0, 1fr) 24px;
@@ -395,8 +399,5 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .row .f-end { grid-column: 3; }
   .row .f-date { grid-column: 2; }
   .row .f-repeat { grid-column: 3; }
-  .row .status { grid-column: 2 / -1; }
-  .actionbar .buttons { width: 100%; }
-  .actionbar .buttons .btn { flex: 1; }
-  .foot { display: none; }
+  .row .status, .row .repeat-line { grid-column: 2 / -1; }
 }

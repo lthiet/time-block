@@ -54,7 +54,7 @@ const state = {
   defaultDate: todayStr(),
   focusedId: null,
   agendaDate: null, // null = follow focused row / default date
-  view: 'day', // calendar panel: 'day' | 'week'
+  view: 'week', // calendar panel: 'week' (default) | 'day'
   calendars: [],
   targetId: null,
   checkIds: null, // null = defaults (primary + target) once calendars load
@@ -92,7 +92,7 @@ function loadPersisted() {
       state.targetId = s.targetId || null;
       state.checkIds = Array.isArray(s.checkIds) ? s.checkIds : null;
       state.includeAllDay = !!s.includeAllDay;
-      state.view = s.view === 'week' ? 'week' : 'day';
+      state.view = s.calView === 'day' ? 'day' : 'week';
     }
   } catch { /* ignore */ }
   try {
@@ -118,7 +118,7 @@ function persistDraft() {
 function persistSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      targetId: state.targetId, checkIds: state.checkIds, includeAllDay: state.includeAllDay, view: state.view,
+      targetId: state.targetId, checkIds: state.checkIds, includeAllDay: state.includeAllDay, calView: state.view,
     }));
   } catch { /* ignore */ }
 }
@@ -487,7 +487,6 @@ function renderAgenda() {
   const dates = visibleDates();
   const week = dates.length > 1;
   const today = todayStr();
-  $('.layout').classList.toggle('week-view', week);
   for (const b of document.querySelectorAll('.view-toggle button')) {
     b.classList.toggle('active', b.dataset.view === state.view);
     b.setAttribute('aria-pressed', b.dataset.view === state.view);
