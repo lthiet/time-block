@@ -19,7 +19,11 @@ Google Calendar has no setting to hide a calendar only in the month view. The us
 2. **APIs & Services → Library** → enable **Google Calendar API**.
 3. **APIs & Services → OAuth consent screen** (Google Auth Platform):
    - User type **External**. Fill in the app name and your email.
-   - **Data access / Scopes**: add `.../auth/calendar.events` and `.../auth/calendar.calendarlist.readonly`.
+   - **Data access → Add or remove scopes**: add these two (paste them into *Manually add scopes* if they aren't listed; the Calendar API must be enabled first):
+     ```
+     https://www.googleapis.com/auth/calendar.events
+     https://www.googleapis.com/auth/calendar.calendarlist.readonly
+     ```
    - **Audience → Test users**: add your own Google account. For personal use you can leave the app in *Testing*, and no verification is needed.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
    - Application type: **Web application**
