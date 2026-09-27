@@ -96,11 +96,15 @@ every mon,wed 18-19 Run until 2026-12-20"></textarea>
       <div id="flash" class="flash" aria-live="polite" hidden></div>
     </section>
 
-    <aside class="panel agenda" aria-label="Day agenda">
+    <aside class="panel agenda" aria-label="Calendar">
       <div class="agenda-head">
         <button type="button" class="icon-btn" id="agendaPrev" aria-label="Previous day">‹</button>
         <h2 id="agendaTitle">—</h2>
         <button type="button" class="icon-btn" id="agendaNext" aria-label="Next day">›</button>
+        <div class="view-toggle" role="group" aria-label="Calendar view">
+          <button type="button" data-view="day">Day</button>
+          <button type="button" data-view="week">Week</button>
+        </div>
       </div>
       <div id="agendaAllDay" class="agenda-allday"></div>
       <div id="agendaNote" class="muted small agenda-note"></div>

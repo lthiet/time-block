@@ -17,7 +17,12 @@ function h(tag, attrs = {}, ...children) {
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === null || v === false) continue;
     if (k === 'class') el.className = v;
-    else if (k === 'style') Object.assign(el.style, v);
+    else if (k === 'style') {
+      for (const [p, val] of Object.entries(v)) {
+        if (p.startsWith('--')) el.style.setProperty(p, val);
+        else el.style[p] = val;
+      }
+    }
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
     else el.setAttribute(k, v === true ? '' : v);
   }
@@ -49,6 +54,7 @@ const state = {
   defaultDate: todayStr(),
   focusedId: null,
   agendaDate: null, // null = follow focused row / default date
+  view: 'day', // calendar panel: 'day' | 'week'
   calendars: [],
   targetId: null,
   checkIds: null, // null = defaults (primary + target) once calendars load
@@ -86,6 +92,7 @@ function loadPersisted() {
       state.targetId = s.targetId || null;
       state.checkIds = Array.isArray(s.checkIds) ? s.checkIds : null;
       state.includeAllDay = !!s.includeAllDay;
+      state.view = s.view === 'week' ? 'week' : 'day';
     }
   } catch { /* ignore */ }
   try {
@@ -111,7 +118,7 @@ function persistDraft() {
 function persistSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      targetId: state.targetId, checkIds: state.checkIds, includeAllDay: state.includeAllDay,
+      targetId: state.targetId, checkIds: state.checkIds, includeAllDay: state.includeAllDay, view: state.view,
     }));
   } catch { /* ignore */ }
 }
@@ -364,7 +371,10 @@ function renderSettings() {
   $('#includeAllDay').checked = state.includeAllDay;
 }
 
-// ---------------------------------------------------------------- agenda
+// ---------------------------------------------------------------- calendar panel (day / week)
+
+const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const gridCols = (n) => `repeat(${n}, minmax(0, 1fr))`;
 
 function agendaDate() {
   if (state.agendaDate) return state.agendaDate;
@@ -372,22 +382,50 @@ function agendaDate() {
   return focused?.date || state.defaultDate;
 }
 
-let agendaLoadSeq = 0;
-async function loadAgendaDay({ force = false } = {}) {
+/** Dates shown in the calendar panel: one day, or Monday–Sunday of that day's week. */
+function visibleDates() {
   const date = agendaDate();
+  if (state.view !== 'week') return [date];
+  const monday = L.addDays(date, -((L.weekdayOf(date) + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => L.addDays(monday, i));
+}
+
+function setView(view) {
+  if (view !== 'day' && view !== 'week') return;
+  state.view = view;
+  persistSettings();
+  loadAgendaDay();
+}
+
+const isCached = (d) => {
+  const c = state.dayCache.get(d);
+  return c && Date.now() - c.at < DAY_CACHE_TTL;
+};
+
+let agendaLoadSeq = 0;
+/** Load events for the visible day(s) in one request per calendar, then render. */
+async function loadAgendaDay({ force = false } = {}) {
+  const dates = visibleDates();
   if (!state.signedIn || !auth.isSignedIn() || !state.checkIds?.length) { renderAgenda(); return; }
-  const cached = state.dayCache.get(date);
-  if (!force && cached && Date.now() - cached.at < DAY_CACHE_TTL) { renderAgenda(); return; }
+  const missing = force ? dates : dates.filter((d) => !isCached(d));
+  renderAgenda();
+  if (!missing.length) return;
   const seq = ++agendaLoadSeq;
-  const start = new Date(`${date}T00:00:00`);
-  const end = new Date(`${L.addDays(date, 1)}T00:00:00`);
+  const first = missing[0];
+  const last = missing[missing.length - 1];
   const cals = state.calendars.filter((c) => state.checkIds.includes(c.id));
   try {
-    const lists = await Promise.all(cals.map((c) => gcal.listEvents(c.id, start, end)));
+    const lists = await Promise.all(cals.map((c) => gcal.listEvents(
+      c.id, new Date(`${first}T00:00:00`), new Date(`${L.addDays(last, 1)}T00:00:00`))));
     const events = lists.flatMap((items, i) => items
       .map((ev) => L.normalizeEvent(ev, cals[i], { includeAllDay: true }))
       .filter(Boolean));
-    state.dayCache.set(date, { at: Date.now(), events });
+    const at = Date.now();
+    for (let d = first; d <= last; d = L.addDays(d, 1)) {
+      const ds = new Date(`${d}T00:00:00`);
+      const de = new Date(`${L.addDays(d, 1)}T00:00:00`);
+      state.dayCache.set(d, { at, events: events.filter((e) => e.start < de && e.end > ds) });
+    }
   } catch (e) {
     if (seq === agendaLoadSeq) $('#agendaNote').textContent = `Couldn't load events: ${e.message}`;
     if (e instanceof gcal.AuthError) setSignedOut();
@@ -396,91 +434,119 @@ async function loadAgendaDay({ force = false } = {}) {
   if (seq === agendaLoadSeq) renderAgenda();
 }
 
-function renderAgenda() {
-  const date = agendaDate();
-  $('#agendaTitle').textContent = date === todayStr() ? `Today · ${fmtDay(date)}` : fmtDay(date);
-  const cached = state.dayCache.get(date);
-  const events = cached?.events || [];
-  const note = $('#agendaNote');
-  note.textContent = !state.signedIn ? 'Sign in to see your calendar here.'
-    : !cached ? 'Loading…'
-      : '';
-
-  const allDay = events.filter((e) => e.allDay);
-  $('#agendaAllDay').replaceChildren(...allDay.map((e) =>
-    h('span', { class: 'allday-chip', style: { background: e.color }, title: `${e.title} · ${e.calendarName}` }, e.title)));
-
+/** Timed items (existing events + new blocks) for one day, with side-by-side lanes. */
+function dayItems(date) {
+  const events = state.dayCache.get(date)?.events || [];
   const dayStart = new Date(`${date}T00:00:00`).getTime();
   const toMin = (d) => Math.round((d.getTime() - dayStart) / 60000);
   const items = events.filter((e) => !e.allDay).map((e) => ({
     kind: 'event', ev: e, s: Math.max(0, toMin(e.start)), e: Math.min(24 * 60, toMin(e.end)),
   })).filter((i) => i.e > i.s);
-
-  const drafts = state.rows.filter((r) => L.occursOn(r, date) && !L.validateRow({ ...r, title: r.title || 'x' }).length);
-  for (const r of drafts) {
-    const [sh, sm] = r.start.split(':').map(Number);
-    const [eh, em] = r.end.split(':').map(Number);
-    items.push({ kind: 'draft', row: r, s: sh * 60 + sm, e: eh * 60 + em });
+  for (const r of state.rows) {
+    if (!L.occursOn(r, date) || L.validateRow({ ...r, title: r.title || 'x' }).length) continue;
+    items.push({ kind: 'draft', row: r, s: toMins(r.start), e: toMins(r.end) });
   }
   L.assignLanes(items);
+  return { items, allDay: events.filter((e) => e.allDay) };
+}
 
-  const ghost = drag?.mode === 'create' && drag.moved && drag.date === date ? drag : null;
+function allDayChip(e) {
+  return h('span', { class: 'allday-chip', style: { '--c': e.color || 'var(--muted)' }, title: `${e.title} · ${e.calendarName}` }, e.title);
+}
+
+function blockEl(i, px) {
+  const width = 100 / i.lanes;
+  const style = {
+    top: `${px(i.s)}px`,
+    height: `${Math.max(px(i.e) - px(i.s) - 1, 14)}px`,
+    left: `calc(${i.lane * width}% + 1px)`,
+    width: `calc(${width}% - 2px)`,
+  };
+  const tall = i.e - i.s >= 30;
+  if (i.kind === 'event') {
+    style['--c'] = i.ev.color || 'var(--muted)';
+    const time = `${fmtTime(i.ev.start)}–${fmtTime(i.ev.end)}`;
+    return h('div', { class: 'blk', style, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}` },
+      h('b', {}, i.ev.title), tall ? h('span', { class: 'blk-time' }, time) : null);
+  }
+  const st = rowStatus(i.row).state;
+  const dragging = drag?.moved && drag.rowId === i.row.id;
+  const time = `${fmtHM(i.row.start)}–${fmtHM(i.row.end)}`;
+  return h('div', {
+    class: `blk draft${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}`,
+    style,
+    'data-row-id': i.row.id,
+    title: `${i.row.title || '(untitled)'}\n${time} · new block\nDrag to move · drag the bottom edge to resize`,
+  },
+  h('b', {}, i.row.title || '(untitled)'),
+  tall || dragging ? h('span', { class: 'blk-time' }, time) : null,
+  h('div', { class: 'grip' }));
+}
+
+function renderAgenda() {
+  const dates = visibleDates();
+  const week = dates.length > 1;
+  const today = todayStr();
+  $('.layout').classList.toggle('week-view', week);
+  for (const b of document.querySelectorAll('.view-toggle button')) {
+    b.classList.toggle('active', b.dataset.view === state.view);
+    b.setAttribute('aria-pressed', b.dataset.view === state.view);
+  }
+  $('#agendaTitle').textContent = week
+    ? `${fmtDay(dates[0])} – ${fmtDay(dates[dates.length - 1])}`
+    : dates[0] === today ? `Today · ${fmtDay(dates[0])}` : fmtDay(dates[0]);
+  $('#agendaPrev').setAttribute('aria-label', week ? 'Previous week' : 'Previous day');
+  $('#agendaNext').setAttribute('aria-label', week ? 'Next week' : 'Next day');
+  $('#agendaNote').textContent = !state.signedIn ? 'Sign in to see your calendar here.'
+    : dates.some((d) => !state.dayCache.has(d)) ? 'Loading…' : '';
+
+  const cols = dates.map(dayItems);
+  $('#agendaAllDay').replaceChildren(...(week ? [] : cols[0].allDay.map(allDayChip)));
+
+  const ghost = drag?.mode === 'create' && drag.moved ? drag : null;
   let from = 8 * 60;
   let to = 24 * 60;
-  for (const i of [...items, ...(ghost ? [ghost] : [])]) { from = Math.min(from, i.s); to = Math.max(to, i.e); }
+  for (const i of [...cols.flatMap((c) => c.items), ...(ghost ? [ghost] : [])]) {
+    from = Math.min(from, i.s);
+    to = Math.max(to, i.e);
+  }
   from = Math.floor(from / 60) * 60;
   to = Math.min(24 * 60, Math.ceil(to / 60) * 60);
   const px = (m) => ((m - from) / 60) * hourPx();
 
   const tl = $('#timeline');
   tl.dataset.from = from;
-  tl.dataset.date = date;
-  const inner = h('div', { class: 'tl-inner', style: { height: `${px(to)}px` } });
-  const children = [];
+  tl.classList.toggle('week', week);
+
+  const head = week ? h('div', { class: 'tl-head', style: { gridTemplateColumns: gridCols(dates.length) } },
+    dates.map((d, ci) => h('div', { class: `tl-dayhead${d === today ? ' today' : ''}`, 'data-date': d, title: 'Open this day' },
+      h('div', { class: 'tl-daylabel' },
+        h('span', { class: 'dow' }, WEEKDAY_SHORT[L.weekdayOf(d)]),
+        h('span', { class: 'dom' }, String(Number(d.slice(8))))),
+      h('div', { class: 'tl-allday' }, cols[ci].allDay.map(allDayChip))))) : null;
+
+  const body = h('div', { class: 'tl-body', style: { height: `${px(to)}px` } });
   for (let m = from; m <= to; m += 60) {
-    const label = `${String((m / 60) % 24).padStart(2, '0')}:00`;
-    children.push(h('div', { class: 'hour', style: { top: `${px(m)}px` } }, h('span', {}, label)));
+    body.append(h('div', { class: 'hour', style: { top: `${px(m)}px` } },
+      h('span', {}, `${String((m / 60) % 24).padStart(2, '0')}:00`)));
   }
-  if (date === todayStr()) {
-    const now = new Date();
-    const m = now.getHours() * 60 + now.getMinutes();
-    if (m >= from && m <= to) children.push(h('div', { class: 'now', style: { top: `${px(m)}px` } }));
-  }
-  for (const i of items) {
-    const width = 100 / i.lanes;
-    const style = {
-      top: `${px(i.s)}px`,
-      height: `${Math.max(px(i.e) - px(i.s) - 1, 14)}px`,
-      left: `calc(${i.lane * width}% + 3px)`,
-      width: `calc(${width}% - 6px)`,
-    };
-    if (i.kind === 'event') {
-      style.background = i.ev.color || 'var(--muted)';
-      children.push(h('div', {
-        class: 'blk', style, title: `${i.ev.title}\n${fmtTime(i.ev.start)}–${fmtTime(i.ev.end)} · ${i.ev.calendarName}`,
-      }, h('b', {}, i.ev.title), i.e - i.s >= 45 ? `${fmtTime(i.ev.start)} · ${i.ev.calendarName}` : null));
-    } else {
-      const st = rowStatus(i.row).state;
-      const dragging = drag?.moved && drag.rowId === i.row.id;
-      children.push(h('div', {
-        class: `blk draft${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}`,
-        style,
-        'data-row-id': i.row.id,
-        title: `${i.row.title || '(untitled)'}\n${fmtHM(i.row.start)}–${fmtHM(i.row.end)} · new block\nDrag to move · drag the bottom edge to resize`,
-      },
-      h('b', {}, i.row.title || '(untitled)'),
-      i.e - i.s >= 30 || dragging ? h('span', { class: 'blk-time' }, `${fmtHM(i.row.start)}–${fmtHM(i.row.end)}`) : null,
-      h('div', { class: 'grip' })));
+  const colEls = dates.map((d, ci) => {
+    const kids = cols[ci].items.map((i) => blockEl(i, px));
+    if (d === today) {
+      const now = new Date();
+      const m = now.getHours() * 60 + now.getMinutes();
+      if (m >= from && m <= to) kids.push(h('div', { class: 'now', style: { top: `${px(m)}px` } }));
     }
-  }
-  if (ghost) {
-    children.push(h('div', {
-      class: 'blk ghost',
-      style: { top: `${px(ghost.s)}px`, height: `${Math.max(px(ghost.e) - px(ghost.s) - 1, 14)}px` },
-    }, h('b', {}, 'New block'), h('span', { class: 'blk-time' }, `${fmtHM(toHM(ghost.s))}–${fmtHM(toHM(ghost.e))}`)));
-  }
-  inner.replaceChildren(...children);
-  tl.replaceChildren(inner);
+    if (ghost && ghost.date === d) {
+      kids.push(h('div', {
+        class: 'blk ghost',
+        style: { top: `${px(ghost.s)}px`, height: `${Math.max(px(ghost.e) - px(ghost.s) - 1, 14)}px` },
+      }, h('b', {}, 'New block'), h('span', { class: 'blk-time' }, `${toHM(ghost.s)}–${toHM(ghost.e)}`)));
+    }
+    return h('div', { class: `tl-col${d === today && week ? ' today' : ''}`, 'data-date': d }, kids);
+  });
+  body.append(h('div', { class: 'tl-cols', style: { gridTemplateColumns: gridCols(dates.length) } }, colEls));
+  tl.replaceChildren(...[head, body].filter(Boolean));
 
   const legendCals = state.calendars.filter((c) => (state.checkIds || []).includes(c.id));
   $('#legend').replaceChildren(
@@ -505,8 +571,16 @@ const snap = (m) => Math.round(m / SNAP) * SNAP;
 /** Minutes since midnight under a viewport Y coordinate on the timeline. */
 function minutesAt(clientY) {
   const tl = $('#timeline');
-  const rect = tl.querySelector('.tl-inner').getBoundingClientRect();
+  const rect = tl.querySelector('.tl-body').getBoundingClientRect();
   return Number(tl.dataset.from) + ((clientY - rect.top) / hourPx()) * 60;
+}
+
+/** Date of the day column under a viewport X coordinate (nearest column when outside). */
+function dateAt(clientX) {
+  const cols = [...document.querySelectorAll('#timeline .tl-col')];
+  let best = cols[0];
+  for (const c of cols) if (clientX >= c.getBoundingClientRect().left) best = c;
+  return best?.dataset.date;
 }
 
 /** Put a block on `date` from start to end, reusing the blank row if there is one. */
@@ -529,6 +603,7 @@ function syncRowTimes(row) {
   if (!el) return;
   el.querySelector('.f-start').value = row.start;
   el.querySelector('.f-end').value = row.end;
+  el.querySelector('.f-date').value = row.date;
 }
 
 function endDrag(tl, { cancel = false } = {}) {
@@ -547,11 +622,19 @@ function endDrag(tl, { cancel = false } = {}) {
 function wireTimelineDrag() {
   const tl = $('#timeline');
 
+  // Week view: clicking a day header opens that day.
+  tl.addEventListener('click', (e) => {
+    const head = e.target.closest('.tl-dayhead');
+    if (!head) return;
+    state.agendaDate = head.dataset.date;
+    setView('day');
+  });
+
   tl.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0 || drag || !tl.querySelector('.tl-inner')) return;
+    if (e.button !== 0 || drag || !e.target.closest('.tl-body')) return;
     const m = minutesAt(e.clientY);
     const blk = e.target.closest('.blk.draft');
-    const base = { pointerId: e.pointerId, date: tl.dataset.date, startY: e.clientY, moved: false };
+    const base = { pointerId: e.pointerId, date: dateAt(e.clientX), startX: e.clientX, startY: e.clientY, moved: false };
     if (blk) {
       const row = state.rows.find((r) => r.id === blk.dataset.rowId);
       if (!row) return;
@@ -559,7 +642,7 @@ function wireTimelineDrag() {
         ...base,
         mode: e.target.closest('.grip') ? 'resize' : 'move',
         rowId: row.id,
-        orig: { start: row.start, end: row.end },
+        orig: { start: row.start, end: row.end, date: row.date },
         offset: m - toMins(row.start),
       };
     } else {
@@ -574,7 +657,7 @@ function wireTimelineDrag() {
   tl.addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.pointerId) return;
     if (!drag.moved) {
-      if (Math.abs(e.clientY - drag.startY) < DRAG_THRESHOLD) return;
+      if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < DRAG_THRESHOLD) return;
       drag.moved = true;
       if (drag.mode === 'tap') return; // the browser is scrolling
       tl.classList.add('dragging');
@@ -588,7 +671,7 @@ function wireTimelineDrag() {
     const m = minutesAt(e.clientY);
     if (drag.mode === 'create') {
       const cur = clamp(snap(m), 0, DAY_END);
-      let s = Math.min(drag.anchor, cur);
+      const s = Math.min(drag.anchor, cur);
       let end = Math.max(drag.anchor, cur);
       if (cur <= drag.anchor) end = Math.min(drag.anchor + SNAP, DAY_END); // dragging upwards keeps the anchor slot
       if (end - s < SNAP) end = Math.min(s + SNAP, DAY_END);
@@ -602,6 +685,8 @@ function wireTimelineDrag() {
         const s = clamp(snap(m - drag.offset), 0, DAY_END - dur);
         row.start = toHM(s);
         row.end = toHM(s + dur);
+        // One-off blocks can also move across days in the week view; a series keeps its start date.
+        if (!L.isRecurring(row)) row.date = dateAt(e.clientX) || row.date;
       } else {
         const s = toMins(row.start);
         row.end = toHM(clamp(snap(m), s + SNAP, DAY_END));
@@ -616,7 +701,7 @@ function wireTimelineDrag() {
     const { d, row } = endDrag(tl);
     if (!d.moved) {
       if (row) focusRow(row.id);
-      else addBlock(d.date, toHM(d.anchor), L.addMinutes(toHM(d.anchor), DEFAULT_DURATION));
+      else if (d.date) addBlock(d.date, toHM(d.anchor), L.addMinutes(toHM(d.anchor), DEFAULT_DURATION));
       return;
     }
     if (d.mode === 'create') addBlock(d.date, toHM(d.s), toHM(d.e));
@@ -1034,6 +1119,8 @@ function applyHash() {
   const params = new URLSearchParams(location.hash.slice(1));
   const d = L.resolveDate(params.get('date') || '', todayStr());
   if (d) setDefaultDate(d, { moveRows: false });
+  const view = params.get('view');
+  if (view && view !== state.view) setView(view);
 }
 
 // ---------------------------------------------------------------- wiring
@@ -1045,8 +1132,15 @@ function wire() {
   $('#todayBtn').addEventListener('click', () => setDefaultDate(todayStr()));
   $('#tomorrowBtn').addEventListener('click', () => setDefaultDate(L.addDays(todayStr(), 1)));
 
-  $('#agendaPrev').addEventListener('click', () => { state.agendaDate = L.addDays(agendaDate(), -1); loadAgendaDay(); });
-  $('#agendaNext').addEventListener('click', () => { state.agendaDate = L.addDays(agendaDate(), 1); loadAgendaDay(); });
+  const stepAgenda = (dir) => {
+    state.agendaDate = L.addDays(agendaDate(), dir * (state.view === 'week' ? 7 : 1));
+    loadAgendaDay();
+  };
+  $('#agendaPrev').addEventListener('click', () => stepAgenda(-1));
+  $('#agendaNext').addEventListener('click', () => stepAgenda(1));
+  for (const b of document.querySelectorAll('.view-toggle button')) {
+    b.addEventListener('click', () => setView(b.dataset.view));
+  }
 
   wireTimelineDrag();
 
