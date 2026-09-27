@@ -375,6 +375,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .foot { text-align: center; padding: 2px 12px 12px; font-size: 11px; }
 
 /* ---------- Narrow screens ---------- */
+/* Desktop: both panels fill the screen height; the block list and calendar scroll inside them. */
+@media (min-width: 901px) {
+  .layout { height: calc(100dvh - var(--topbar-h, 42px)); align-items: stretch; }
+  .panel { min-height: 0; display: flex; flex-direction: column; }
+  .panel > * { flex-shrink: 0; }
+  .entry .rows { flex: 1 1 auto; min-height: 80px; overflow-y: auto; align-content: start; }
+  .agenda { position: static; }
+  .agenda .timeline { flex: 1 1 auto; min-height: 0; max-height: none; }
+}
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .agenda { position: static; }

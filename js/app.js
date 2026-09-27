@@ -1208,6 +1208,9 @@ function wire() {
 }
 
 async function main() {
+  // Panels fill the screen below the (sticky, possibly wrapping) top bar.
+  const topbar = $('.topbar');
+  new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${topbar.offsetHeight}px`)).observe(topbar);
   loadPersisted();
   ensureTrailingBlank();
   $('#defaultDate').value = state.defaultDate;
