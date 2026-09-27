@@ -423,13 +423,13 @@ function renderAgenda() {
   }
   L.assignLanes(items);
 
+  const ghost = drag?.mode === 'create' && drag.moved && drag.date === date ? drag : null;
   let from = 7 * 60;
   let to = 21 * 60;
-  for (const i of items) { from = Math.min(from, i.s); to = Math.max(to, i.e); }
+  for (const i of [...items, ...(ghost ? [ghost] : [])]) { from = Math.min(from, i.s); to = Math.max(to, i.e); }
   from = Math.floor(from / 60) * 60;
   to = Math.min(24 * 60, Math.ceil(to / 60) * 60);
-  const hourPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour')) || 44;
-  const px = (m) => ((m - from) / 60) * hourPx;
+  const px = (m) => ((m - from) / 60) * hourPx();
 
   const tl = $('#timeline');
   tl.dataset.from = from;
@@ -461,13 +461,23 @@ function renderAgenda() {
       }, h('b', {}, i.ev.title), i.e - i.s >= 45 ? `${fmtTime(i.ev.start)} · ${i.ev.calendarName}` : null));
     } else {
       const st = rowStatus(i.row).state;
+      const dragging = drag?.moved && drag.rowId === i.row.id;
       children.push(h('div', {
-        class: `blk draft${st === 'conflict' && !i.row.force ? ' conflict' : ''}`,
+        class: `blk draft${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}`,
         style,
-        title: `${i.row.title || '(untitled)'}\n${fmtHM(i.row.start)}–${fmtHM(i.row.end)} · new block`,
-        onclick: (e) => { e.stopPropagation(); focusRow(i.row.id, '.f-title'); },
-      }, h('b', {}, i.row.title || '(untitled)'), i.e - i.s >= 45 ? `${fmtHM(i.row.start)} · new` : null));
+        'data-row-id': i.row.id,
+        title: `${i.row.title || '(untitled)'}\n${fmtHM(i.row.start)}–${fmtHM(i.row.end)} · new block\nDrag to move · drag the bottom edge to resize`,
+      },
+      h('b', {}, i.row.title || '(untitled)'),
+      i.e - i.s >= 30 || dragging ? h('span', { class: 'blk-time' }, `${fmtHM(i.row.start)}–${fmtHM(i.row.end)}`) : null,
+      h('div', { class: 'grip' })));
     }
+  }
+  if (ghost) {
+    children.push(h('div', {
+      class: 'blk ghost',
+      style: { top: `${px(ghost.s)}px`, height: `${Math.max(px(ghost.e) - px(ghost.s) - 1, 14)}px` },
+    }, h('b', {}, 'New block'), h('span', { class: 'blk-time' }, `${fmtHM(toHM(ghost.s))}–${fmtHM(toHM(ghost.e))}`)));
   }
   inner.replaceChildren(...children);
   tl.replaceChildren(inner);
@@ -477,6 +487,157 @@ function renderAgenda() {
     h('span', {}, h('span', { class: 'swatch draft-swatch' }), 'New blocks'),
     ...legendCals.map((c) => h('span', {}, h('span', { class: 'swatch', style: { background: c.color } }), c.name)),
   );
+}
+
+// ---------------------------------------------------------------- timeline drag
+
+const SNAP = 15;
+const DAY_END = 23 * 60 + 59;
+const DRAG_THRESHOLD = 4; // px before a press becomes a drag
+let drag = null; // {mode:'create'|'move'|'resize'|'tap', pointerId, date, startY, moved, rowId?, orig?, offset?, anchor?, s?, e?}
+
+const hourPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour')) || 36;
+const toMins = (t) => { const [hh, mm] = t.split(':').map(Number); return hh * 60 + mm; };
+const toHM = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const snap = (m) => Math.round(m / SNAP) * SNAP;
+
+/** Minutes since midnight under a viewport Y coordinate on the timeline. */
+function minutesAt(clientY) {
+  const tl = $('#timeline');
+  const rect = tl.querySelector('.tl-inner').getBoundingClientRect();
+  return Number(tl.dataset.from) + ((clientY - rect.top) / hourPx()) * 60;
+}
+
+/** Put a block on `date` from start to end, reusing the blank row if there is one. */
+function addBlock(date, start, end) {
+  const fields = { date, start, end };
+  let row = state.rows.find((r) => L.isBlank(r));
+  if (row) Object.assign(row, fields);
+  else {
+    row = newRow(fields);
+    state.rows.push(row);
+  }
+  rememberDuration(row);
+  state.agendaDate = date;
+  onRowsChanged();
+  focusRow(row.id);
+}
+
+function syncRowTimes(row) {
+  const el = rowEls.get(row.id);
+  if (!el) return;
+  el.querySelector('.f-start').value = row.start;
+  el.querySelector('.f-end').value = row.end;
+}
+
+function endDrag(tl, { cancel = false } = {}) {
+  const d = drag;
+  drag = null;
+  tl.classList.remove('dragging');
+  if (tl.hasPointerCapture?.(d.pointerId)) tl.releasePointerCapture(d.pointerId);
+  const row = d.rowId && state.rows.find((r) => r.id === d.rowId);
+  if (cancel && row && d.orig) {
+    Object.assign(row, d.orig);
+    syncRowTimes(row);
+  }
+  return { d, row };
+}
+
+function wireTimelineDrag() {
+  const tl = $('#timeline');
+
+  tl.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || drag || !tl.querySelector('.tl-inner')) return;
+    const m = minutesAt(e.clientY);
+    const blk = e.target.closest('.blk.draft');
+    const base = { pointerId: e.pointerId, date: tl.dataset.date, startY: e.clientY, moved: false };
+    if (blk) {
+      const row = state.rows.find((r) => r.id === blk.dataset.rowId);
+      if (!row) return;
+      drag = {
+        ...base,
+        mode: e.target.closest('.grip') ? 'resize' : 'move',
+        rowId: row.id,
+        orig: { start: row.start, end: row.end },
+        offset: m - toMins(row.start),
+      };
+    } else {
+      // Touch on empty space: a tap adds a block, a swipe scrolls normally.
+      drag = { ...base, mode: e.pointerType === 'touch' ? 'tap' : 'create', anchor: clamp(Math.floor(m / SNAP) * SNAP, 0, DAY_END - SNAP) };
+      if (drag.mode === 'tap') return;
+    }
+    tl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  tl.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    if (!drag.moved) {
+      if (Math.abs(e.clientY - drag.startY) < DRAG_THRESHOLD) return;
+      drag.moved = true;
+      if (drag.mode === 'tap') return; // the browser is scrolling
+      tl.classList.add('dragging');
+    }
+    if (drag.mode === 'tap') return;
+    // Auto-scroll near the edges.
+    const rect = tl.getBoundingClientRect();
+    if (e.clientY < rect.top + 24) tl.scrollTop -= 8;
+    else if (e.clientY > rect.bottom - 24) tl.scrollTop += 8;
+
+    const m = minutesAt(e.clientY);
+    if (drag.mode === 'create') {
+      const cur = clamp(snap(m), 0, DAY_END);
+      let s = Math.min(drag.anchor, cur);
+      let end = Math.max(drag.anchor, cur);
+      if (cur <= drag.anchor) end = Math.min(drag.anchor + SNAP, DAY_END); // dragging upwards keeps the anchor slot
+      if (end - s < SNAP) end = Math.min(s + SNAP, DAY_END);
+      drag.s = s;
+      drag.e = end;
+    } else {
+      const row = state.rows.find((r) => r.id === drag.rowId);
+      if (!row) return;
+      if (drag.mode === 'move') {
+        const dur = toMins(drag.orig.end) - toMins(drag.orig.start);
+        const s = clamp(snap(m - drag.offset), 0, DAY_END - dur);
+        row.start = toHM(s);
+        row.end = toHM(s + dur);
+      } else {
+        const s = toMins(row.start);
+        row.end = toHM(clamp(snap(m), s + SNAP, DAY_END));
+      }
+      syncRowTimes(row);
+    }
+    renderAgenda();
+  });
+
+  tl.addEventListener('pointerup', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const { d, row } = endDrag(tl);
+    if (!d.moved) {
+      if (row) focusRow(row.id);
+      else addBlock(d.date, toHM(d.anchor), L.addMinutes(toHM(d.anchor), DEFAULT_DURATION));
+      return;
+    }
+    if (d.mode === 'create') addBlock(d.date, toHM(d.s), toHM(d.e));
+    else if (row) {
+      state.saveErrors.delete(row.id);
+      rememberDuration(row);
+      onRowsChanged({ structural: false });
+    }
+  });
+
+  tl.addEventListener('pointercancel', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    endDrag(tl, { cancel: true });
+    renderAgenda();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !drag) return;
+    endDrag(tl, { cancel: true });
+    renderAgenda();
+  });
 }
 
 // ---------------------------------------------------------------- row editing
@@ -540,7 +701,7 @@ function onRowsChanged({ structural = true } = {}) {
 
 function scheduleAutoCheck() {
   clearTimeout(autoCheckTimer);
-  if (!state.signedIn || isFresh()) return;
+  if (!state.signedIn || isFresh() || drag) return;
   autoCheckTimer = setTimeout(() => {
     // Only auto-check silently with a live token (no popups outside a user gesture).
     if (auth.isSignedIn() && !state.saving) runCheck();
@@ -887,31 +1048,7 @@ function wire() {
   $('#agendaPrev').addEventListener('click', () => { state.agendaDate = L.addDays(agendaDate(), -1); loadAgendaDay(); });
   $('#agendaNext').addEventListener('click', () => { state.agendaDate = L.addDays(agendaDate(), 1); loadAgendaDay(); });
 
-  $('#timeline').addEventListener('click', (e) => {
-    if (e.target.closest('.blk')) return;
-    const tl = e.currentTarget;
-    const inner = tl.querySelector('.tl-inner');
-    if (!inner) return;
-    const rect = inner.getBoundingClientRect();
-    const hourPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour')) || 44;
-    const mins = Number(tl.dataset.from) + ((e.clientY - rect.top) / hourPx) * 60;
-    const snapped = Math.min(23 * 60, Math.max(0, Math.floor(mins / 15) * 15));
-    const start = `${String(Math.floor(snapped / 60)).padStart(2, '0')}:${String(snapped % 60).padStart(2, '0')}`;
-    const fields = { date: tl.dataset.date, start, end: L.addMinutes(start, DEFAULT_DURATION) };
-    const blank = state.rows.find((r) => L.isBlank(r));
-    let row;
-    if (blank) {
-      Object.assign(blank, fields);
-      row = blank;
-      onRowsChanged();
-    } else {
-      row = newRow(fields);
-      state.rows.push(row);
-      onRowsChanged();
-    }
-    state.agendaDate = fields.date;
-    focusRow(row.id);
-  });
+  wireTimelineDrag();
 
   $('#signInBtn').addEventListener('click', doSignIn);
   $('#signOutBtn').addEventListener('click', () => {
