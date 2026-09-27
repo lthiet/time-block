@@ -30,7 +30,8 @@ function h(tag, attrs = {}, ...children) {
 
 const fmtDay = (date) =>
   new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-const fmtTime = (d) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+// 24-hour clock everywhere (e.g. 08:00, 17:30).
+const fmtTime = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 const fmtHM = (t) => fmtTime(new Date(`2000-01-01T${t}:00`));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -424,8 +425,8 @@ function renderAgenda() {
   L.assignLanes(items);
 
   const ghost = drag?.mode === 'create' && drag.moved && drag.date === date ? drag : null;
-  let from = 7 * 60;
-  let to = 21 * 60;
+  let from = 8 * 60;
+  let to = 24 * 60;
   for (const i of [...items, ...(ghost ? [ghost] : [])]) { from = Math.min(from, i.s); to = Math.max(to, i.e); }
   from = Math.floor(from / 60) * 60;
   to = Math.min(24 * 60, Math.ceil(to / 60) * 60);
@@ -437,8 +438,7 @@ function renderAgenda() {
   const inner = h('div', { class: 'tl-inner', style: { height: `${px(to)}px` } });
   const children = [];
   for (let m = from; m <= to; m += 60) {
-    const label = m < 24 * 60
-      ? new Date(2000, 0, 1, m / 60).toLocaleTimeString(undefined, { hour: 'numeric' }) : '';
+    const label = `${String((m / 60) % 24).padStart(2, '0')}:00`;
     children.push(h('div', { class: 'hour', style: { top: `${px(m)}px` } }, h('span', {}, label)));
   }
   if (date === todayStr()) {

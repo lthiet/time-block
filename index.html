@@ -74,7 +74,7 @@
           <textarea id="quickText" rows="6" spellcheck="false" placeholder="9-10:30 Deep work
 10:30-11 Email
 tomorrow
-9am-10am Gym
+09-10 Gym
 2026-10-01 14:00-15:00 Review PRs
 every weekday 7-8 Gym
 every mon,wed 18-19 Run until 2026-12-20"></textarea>
@@ -110,14 +110,14 @@ every mon,wed 18-19 Run until 2026-12-20"></textarea>
   </main>
 
   <footer class="foot muted small">
-    Type times like <kbd>9</kbd> <kbd>930</kbd> <kbd>2pm</kbd> · <kbd>Enter</kbd> next / new row · <kbd>Ctrl+Enter</kbd> check → save · <kbd>Backspace</kbd> on an empty title removes the row · drag on the timeline to add a block, drag a new block to move it or its bottom edge to resize
+    Type times like <kbd>9</kbd> <kbd>0930</kbd> <kbd>1400</kbd> · <kbd>Enter</kbd> next / new row · <kbd>Ctrl+Enter</kbd> check → save · <kbd>Backspace</kbd> on an empty title removes the row · drag on the timeline to add a block, drag a new block to move it or its bottom edge to resize
   </footer>
 
   <template id="rowTpl">
     <li class="row">
       <span class="num"></span>
       <input class="f-title" type="text" placeholder="What's the block?" aria-label="Title" autocomplete="off">
-      <input class="f-start" type="text" placeholder="9:00" aria-label="Start time" autocomplete="off" spellcheck="false">
+      <input class="f-start" type="text" placeholder="09:00" aria-label="Start time" autocomplete="off" spellcheck="false">
       <input class="f-end" type="text" placeholder="10:00" aria-label="End time" autocomplete="off" spellcheck="false">
       <input class="f-date" type="date" aria-label="Date" tabindex="-1">
       <select class="f-repeat" aria-label="Repeat" tabindex="-1">
