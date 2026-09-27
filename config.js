@@ -1,6 +1,6 @@
 // OAuth 2.0 Client ID (Web application) from Google Cloud Console.
 // It's public by design — no client secret is used. See README for setup.
-export const CLIENT_ID = 'PASTE_YOUR_CLIENT_ID.apps.googleusercontent.com';
+export const CLIENT_ID = '524937705179-sgdkotspakf6qmna5id1cd9f0c8f54rm.apps.googleusercontent.com';
 
 // Calendar that new blocks are saved to (matched by name, case-insensitive).
 export const TARGET_CALENDAR_NAME = 'Time Blocking';
