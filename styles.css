@@ -679,9 +679,10 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
   .actionbar .buttons { width: 100%; }
   .actionbar .buttons .btn { flex: 1; }
   .foot { display: none; }
+  .tl-daylabel { flex-direction: column; align-items: center; gap: 0; }
   .tl-dayhead .dow { letter-spacing: 0; }
   .tl-dayhead .dom { font-size: 12px; }
-  .tl-dayhead.today .dom { padding: 0 4px; }
+  .tl-dayhead.today .dom { padding: 0 5px; }
 }
 @container (max-width: 600px) {
   .grid-head { display: none; }
