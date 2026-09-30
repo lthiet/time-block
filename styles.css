@@ -15,6 +15,7 @@
   --warn-soft: #fff3e0;
   --bad: #c62828;
   --bad-soft: #fdecec;
+  --task: #7986cb; /* scheduled tasks; replaced at runtime by the "Tasks" calendar's colour */
   --hour: 36px;
   color-scheme: light;
 }
@@ -134,8 +135,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 
 .layout {
   display: grid;
-  /* Desktop: block list on the left third, calendar on the right two thirds. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  /* Desktop: tasks | block list | calendar (half the width). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr);
   gap: 10px;
   padding: 10px 12px;
   max-width: 1680px;
@@ -346,7 +347,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   touch-action: none;
   user-select: none;
 }
-.blk.draft.conflict { --c: var(--warn); }
+.blk.draft.conflict, .blk.draft.task.conflict { --c: var(--warn); }
 .blk.draft.dragging {
   cursor: grabbing;
   z-index: 4;
@@ -371,6 +372,88 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .legend .draft-swatch { background: color-mix(in srgb, var(--new) 18%, var(--surface)); border-left: 3px solid var(--new); outline: 1px dashed var(--new); outline-offset: -1px; }
 
 
+/* ---------- Task board ---------- */
+.tasks-head { margin-bottom: 6px; }
+.tasks-head input { width: 100%; }
+.lanes { display: grid; align-content: start; gap: 6px; }
+.lane { border: 1px solid var(--border); background: var(--surface-2); }
+.lane.drop-target { border-color: var(--accent); background: var(--accent-soft); }
+.lane-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  text-align: left;
+}
+.lane-head .count { font-weight: 400; font-variant-numeric: tabular-nums; }
+.lane-head.toggle { cursor: pointer; }
+.lane-head.toggle:hover { color: var(--text); }
+.lane-head .caret { margin-left: auto; }
+.lane-list { list-style: none; margin: 0; padding: 0 4px 4px; display: grid; gap: 2px; min-height: 22px; }
+.task-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  padding: 2px 2px 2px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  font-size: 12px;
+}
+.task-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.task-card.dragging { opacity: .4; }
+.grip-dots { color: var(--muted); font-size: 11px; letter-spacing: -2px; padding: 2px 4px; touch-action: none; cursor: grab; }
+.task-title { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; cursor: text; }
+.task-card .t-title { flex: 1 1 0; padding: 1px 4px; font-size: 12px; }
+.lane.done .task-title { text-decoration: line-through; color: var(--muted); }
+.task-card .icon-btn { width: 20px; height: 20px; font-size: 14px; }
+.task-card .t-waiting-on { flex: 1 0 100%; margin-left: 16px; margin-right: 4px; max-width: calc(100% - 20px); padding: 1px 4px; font-size: 11px; }
+.age { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.age.old { color: var(--warn); }
+.sched {
+  font-size: 11px;
+  padding: 0 4px;
+  border: 0;
+  border-left: 3px solid var(--task);
+  background: color-mix(in srgb, var(--task) 18%, var(--surface));
+  color: color-mix(in srgb, var(--task) 55%, var(--text));
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sched.draft { outline: 1px dashed var(--task); outline-offset: -1px; }
+.drop-line { height: 0; border-top: 2px solid var(--accent); margin: -1px 0; }
+.task-chip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  max-width: 240px;
+  padding: 2px 8px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-left: 3px solid var(--task);
+  box-shadow: 0 4px 12px rgb(0 0 0 / .18);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-select: none; }
+.tag.task-tag { background: color-mix(in srgb, var(--task) 18%, var(--surface)); color: color-mix(in srgb, var(--task) 55%, var(--text)); }
+.blk.draft.task, .blk.ghost.task { --c: var(--task); }
+
 .foot { text-align: center; padding: 2px 12px 12px; font-size: 11px; }
 
 /* ---------- Narrow screens ---------- */
@@ -380,11 +463,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .panel { min-height: 0; display: flex; flex-direction: column; }
   .panel > * { flex-shrink: 0; }
   .entry .rows { flex: 1 1 auto; min-height: 80px; overflow-y: auto; align-content: start; }
+  .tasks .lanes { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .agenda { position: static; }
   .agenda .timeline { flex: 1 1 auto; min-height: 0; max-height: none; }
 }
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
+  .lane-list { max-height: 40vh; overflow-y: auto; }
   .agenda { position: static; }
   .timeline { max-height: none; }
 }

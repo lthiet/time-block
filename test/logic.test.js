@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parseTime, resolveDate, validateRow, findConflicts,
   normalizeEvent, buildEventPayload, assignLanes, rowsRange, addMinutes,
-  occurrenceDates, firstOccurrence, buildRRule, describeRepeat,
+  occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
 } from '../js/logic.js';
 
 const TODAY = '2026-09-27'; // a Sunday
@@ -196,4 +196,33 @@ test('buildEventPayload for a recurring row', () => {
   assert.equal(p.recurrence.length, 1);
   assert.match(p.recurrence[0], /^RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=\d{8}T\d{6}Z$/);
   assert.equal(buildEventPayload(recRow({ repeat: rep('') }), 'UTC').recurrence, undefined);
+});
+
+test('waitingAge picks a compact unit', () => {
+  const m = 60000;
+  assert.equal(waitingAge(0, 5 * m), '5m');
+  assert.equal(waitingAge(0, 3 * 60 * m), '3h');
+  assert.equal(waitingAge(0, 2 * 24 * 60 * m), '2d');
+  assert.equal(waitingAge(0, 13 * 24 * 60 * m), '13d');
+  assert.equal(waitingAge(0, 22 * 24 * 60 * m), '3w');
+  assert.equal(waitingAge(10 * m, 0), '0m');
+});
+
+test('moveTask reorders within and across lanes and stamps times', () => {
+  const tasks = [
+    { id: 'a', status: 'backlog' }, { id: 'b', status: 'backlog' },
+    { id: 'c', status: 'doing' }, { id: 'd', status: 'backlog' },
+  ];
+  const ids = (ts) => ts.map((t) => t.id).join('');
+  assert.equal(ids(moveTask(tasks, 'd', 'backlog', 0, 1)), 'dabc');
+  assert.equal(ids(moveTask(tasks, 'a', 'backlog', 9, 1)), 'bcda');
+  const w = moveTask(tasks, 'b', 'waiting', 0, 42);
+  assert.equal(ids(w), 'acdb');
+  assert.equal(w.find((t) => t.id === 'b').waitingSince, 42);
+  const d = moveTask(w, 'b', 'doing', 0, 50);
+  assert.equal(ids(d), 'abcd');
+  assert.equal(d.find((t) => t.id === 'b').waitingSince, null);
+  // Reordering inside Waiting keeps the original waitingSince.
+  assert.equal(moveTask(w, 'b', 'waiting', 0, 99).find((t) => t.id === 'b').waitingSince, 42);
+  assert.equal(moveTask(tasks, 'a', 'done', 0, 7).find((t) => t.id === 'a').doneAt, 7);
 });
