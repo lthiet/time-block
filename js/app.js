@@ -1,4 +1,4 @@
-import { CLIENT_ID, TARGET_CALENDAR_NAME, DEFAULT_DURATION } from '../config.js';
+import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION } from '../config.js';
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as L from './logic.js';
@@ -7,6 +7,7 @@ const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const DRAFT_KEY = 'tb.draft';
 const SETTINGS_KEY = 'tb.settings';
+const TASKS_KEY = 'tb.tasks';
 const DAY_CACHE_TTL = 60_000;
 
 const todayStr = () => L.ymd(new Date());
@@ -68,6 +69,9 @@ const state = {
   dayCache: new Map(), // date -> {at, events}
   signedIn: false,
   email: '',
+  tasks: [], // [{id, title, status, waitingOn, waitingSince, createdAt, doneAt, scheduled}]
+  showDone: false,
+  tasksCalId: null, // the "Tasks" calendar that scheduled tasks are saved to
 };
 
 function newRow(over = {}) {
@@ -93,6 +97,7 @@ function loadPersisted() {
       state.checkIds = Array.isArray(s.checkIds) ? s.checkIds : null;
       state.includeAllDay = !!s.includeAllDay;
       state.view = s.calView === 'day' ? 'day' : 'week';
+      state.showDone = !!s.showDone;
     }
   } catch { /* ignore */ }
   try {
@@ -101,8 +106,19 @@ function loadPersisted() {
       state.rows = d.rows.map((r) => newRow({
         title: String(r.title || ''), date: r.date || state.defaultDate,
         start: r.start || '', end: r.end || '', force: !!r.force, repeat: r.repeat,
+        cal: r.cal === 'tasks' ? 'tasks' : undefined, taskId: r.taskId || undefined,
       }));
       if (d.defaultDate && d.defaultDate >= todayStr()) state.defaultDate = d.defaultDate;
+    }
+  } catch { /* ignore */ }
+  try {
+    const t = JSON.parse(localStorage.getItem(TASKS_KEY) || 'null');
+    if (Array.isArray(t)) {
+      state.tasks = t.filter((x) => x && x.id && L.TASK_STATUSES.includes(x.status)).map((x) => ({
+        id: String(x.id), title: String(x.title || ''), status: x.status, waitingOn: String(x.waitingOn || ''),
+        waitingSince: x.waitingSince || null, createdAt: x.createdAt || Date.now(), doneAt: x.doneAt || null,
+        scheduled: x.scheduled || null,
+      }));
     }
   } catch { /* ignore */ }
 }
@@ -110,7 +126,7 @@ function loadPersisted() {
 function persistDraft() {
   try {
     const rows = state.rows.filter((r) => !L.isBlank(r) || r.start || r.end)
-      .map(({ title, date, start, end, force, repeat }) => ({ title, date, start, end, force, repeat }));
+      .map(({ title, date, start, end, force, repeat, cal, taskId }) => ({ title, date, start, end, force, repeat, cal, taskId }));
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ rows, defaultDate: state.defaultDate }));
   } catch { /* ignore */ }
 }
@@ -119,8 +135,21 @@ function persistSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
       targetId: state.targetId, checkIds: state.checkIds, includeAllDay: state.includeAllDay, calView: state.view,
+      showDone: state.showDone,
     }));
   } catch { /* ignore */ }
+}
+
+function persistTasks() {
+  try { localStorage.setItem(TASKS_KEY, JSON.stringify(state.tasks)); } catch { /* ignore */ }
+}
+
+const isTaskRow = (row) => row.cal === 'tasks';
+
+/** Calendar a row is saved to: the "Tasks" calendar for scheduled tasks, the target otherwise. */
+function rowCalendar(row) {
+  const id = isTaskRow(row) ? state.tasksCalId : state.targetId;
+  return state.calendars.find((c) => c.id === id);
 }
 
 function ensureTrailingBlank() {
@@ -136,6 +165,7 @@ const isFresh = () => state.checkedSig !== null && state.checkedSig === checkSig
 function rowStatus(row) {
   if (L.isBlank(row)) return { state: 'blank' };
   const issues = L.validateRow(row);
+  if (isTaskRow(row) && state.calendars.length && !rowCalendar(row)) issues.push(`No calendar named “${TASKS_CALENDAR_NAME}”`);
   if (issues.length) return { state: 'invalid', issues };
   const r = state.results.get(row.id);
   if (!r) return { state: state.checking ? 'checking' : 'unchecked' };
@@ -223,6 +253,7 @@ function renderRowStatus(row, el = rowEls.get(row.id)) {
   el.className = `row ${s.state}${s.stale ? ' stale' : ''}${row.force && s.state === 'conflict' ? ' forced' : ''}${state.focusedId === row.id ? ' focused' : ''}`;
   const box = el.querySelector('.status');
   box.replaceChildren();
+  if (isTaskRow(row)) box.append(h('span', { class: 'tag task-tag' }, `→ ${TASKS_CALENDAR_NAME}`), ' ');
   if (s.state === 'invalid') {
     box.append(h('span', { class: 'pill bad' }, '✗ ', s.issues.join(' · ')));
   } else if (s.state === 'unchecked') {
@@ -304,13 +335,14 @@ function renderActions() {
 
   const saveBtn = $('#saveBtn');
   const skipped = counts.conflict - filled.filter((r) => rowStatus(r).state === 'conflict' && r.force).length;
-  saveBtn.disabled = state.saving || state.checking || !saveable.length || !target;
+  const missingCal = saveable.some((r) => !rowCalendar(r));
+  saveBtn.disabled = state.saving || state.checking || !saveable.length || missingCal;
   saveBtn.replaceChildren(
     state.saving ? 'Saving…'
       : saveable.length ? `Save ${plural(saveable.length, 'block')}${skipped > 0 ? ` (skip ${skipped})` : ''}`
         : 'Save',
   );
-  saveBtn.title = !target ? 'Choose a calendar to save to (⚙ above)'
+  saveBtn.title = missingCal || (!target && !saveable.length) ? 'Choose a calendar to save to (⚙ above)'
     : !isFresh() ? 'Check conflicts first (Ctrl+Enter)' : 'Ctrl+Enter';
 
   $('#targetSummary').textContent = target ? target.name : (state.signedIn ? 'no calendar selected' : '—');
@@ -334,6 +366,7 @@ function renderAll() {
   renderRows();
   renderActions();
   renderAgenda();
+  renderTasks();
 }
 
 // ---------------------------------------------------------------- rendering: settings
@@ -343,6 +376,9 @@ function renderSettings() {
   const targetColor = state.calendars.find((c) => c.id === state.targetId)?.color;
   if (targetColor) document.documentElement.style.setProperty('--new', targetColor);
   else document.documentElement.style.removeProperty('--new');
+  const tasksColor = state.calendars.find((c) => c.id === state.tasksCalId)?.color;
+  if (tasksColor) document.documentElement.style.setProperty('--task', tasksColor);
+  else document.documentElement.style.removeProperty('--task');
   const sel = $('#targetSelect');
   const writable = state.calendars.filter((c) => c.accessRole === 'owner' || c.accessRole === 'writer');
   sel.replaceChildren(
@@ -477,10 +513,10 @@ function blockEl(i, px) {
   const dragging = drag?.moved && drag.rowId === i.row.id;
   const time = `${fmtHM(i.row.start)}–${fmtHM(i.row.end)}`;
   return h('div', {
-    class: `blk draft${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}`,
+    class: `blk draft${isTaskRow(i.row) ? ' task' : ''}${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}`,
     style,
     'data-row-id': i.row.id,
-    title: `${i.row.title || '(untitled)'}\n${time} · new block\nDrag to move · drag the bottom edge to resize`,
+    title: `${i.row.title || '(untitled)'}\n${time} · new ${isTaskRow(i.row) ? 'task' : 'block'}\nDrag to move · drag the bottom edge to resize`,
   },
   h('b', {}, i.row.title || '(untitled)'),
   tall || dragging ? h('span', { class: 'blk-time' }, time) : null,
@@ -506,7 +542,7 @@ function renderAgenda() {
   const cols = dates.map(dayItems);
   $('#agendaAllDay').replaceChildren(...(week ? [] : cols[0].allDay.map(allDayChip)));
 
-  const ghost = drag?.mode === 'create' && drag.moved ? drag : null;
+  const ghost = drag?.mode === 'create' && drag.moved ? { ...drag, title: 'New block' } : taskGhost;
   let from = 8 * 60;
   let to = 24 * 60;
   for (const i of [...cols.flatMap((c) => c.items), ...(ghost ? [ghost] : [])]) {
@@ -542,9 +578,9 @@ function renderAgenda() {
     }
     if (ghost && ghost.date === d) {
       kids.push(h('div', {
-        class: 'blk ghost',
+        class: `blk ghost${ghost.task ? ' task' : ''}`,
         style: { top: `${px(ghost.s)}px`, height: `${Math.max(px(ghost.e) - px(ghost.s) - 1, 14)}px` },
-      }, h('b', {}, 'New block'), h('span', { class: 'blk-time' }, `${toHM(ghost.s)}–${toHM(ghost.e)}`)));
+      }, h('b', {}, ghost.title), h('span', { class: 'blk-time' }, `${toHM(ghost.s)}–${toHM(ghost.e)}`)));
     }
     return h('div', { class: `tl-col${d === today && week ? ' today' : ''}`, 'data-date': d }, kids);
   });
@@ -587,8 +623,9 @@ function dateAt(clientX) {
 }
 
 /** Put a block on `date` from start to end, reusing the blank row if there is one. */
-function addBlock(date, start, end) {
-  const fields = { date, start, end };
+function addBlock(date, start, end, { title, taskId } = {}) {
+  const fields = { date, start, end, cal: taskId ? 'tasks' : undefined, taskId };
+  if (title) fields.title = title;
   let row = state.rows.find((r) => L.isBlank(r));
   if (row) Object.assign(row, fields);
   else {
@@ -598,6 +635,8 @@ function addBlock(date, start, end) {
   rememberDuration(row);
   state.agendaDate = date;
   onRowsChanged();
+  // renderRows leaves a focused input alone, so fill in a dropped task's title here.
+  if (title) rowEls.get(row.id).querySelector('.f-title').value = row.title;
   focusRow(row.id);
 }
 
@@ -728,6 +767,281 @@ function wireTimelineDrag() {
   });
 }
 
+// ---------------------------------------------------------------- task board
+
+const LANES = [
+  { status: 'backlog', label: 'Backlog' },
+  { status: 'waiting', label: 'Waiting' },
+  { status: 'doing', label: 'Doing' },
+  { status: 'done', label: 'Done' },
+];
+const OLD_WAIT_MS = 7 * 24 * 60 * 60_000; // waiting longer than this is highlighted
+const lanesEl = $('#lanes');
+let taskDrag = null; // {taskId, pointerId, startX, startY, moved, onTitle, title, chip, lane, index}
+let taskGhost = null; // {date, s, e, title, task} while a task hovers over the calendar
+
+const taskOf = (el) => state.tasks.find((t) => t.id === el.closest('.task-card')?.dataset.taskId);
+
+/** The draft row a task was dropped into (not saved yet), if any. */
+function draftForTask(task) {
+  return state.rows.find((r) => r.taskId === task.id && r.date && HHMM.test(r.start) && HHMM.test(r.end));
+}
+
+function scheduledTag(task) {
+  const row = draftForTask(task);
+  if (row) {
+    return h('button', { type: 'button', class: 'sched draft', 'data-row-id': row.id, title: 'Scheduled, not saved yet — click to show the block' },
+      `${fmtDay(row.date)} ${row.start}`);
+  }
+  const s = task.scheduled;
+  if (!s) return null;
+  return h('a', { class: 'sched', href: s.link, target: '_blank', rel: 'noopener', title: 'Open in Google Calendar' },
+    `${fmtDay(s.date)} ${s.start}`);
+}
+
+function taskCard(task) {
+  const now = Date.now();
+  const waiting = task.status === 'waiting';
+  const old = waiting && task.waitingSince && now - task.waitingSince > OLD_WAIT_MS;
+  return h('li', { class: `task-card${taskDrag?.moved && taskDrag.taskId === task.id ? ' dragging' : ''}`, 'data-task-id': task.id },
+    h('span', { class: 'grip-dots', 'aria-hidden': 'true' }, '⋮⋮'),
+    h('span', { class: 'task-title', title: 'Click to edit · drag to another lane or onto the calendar' }, task.title),
+    waiting && task.waitingSince
+      ? h('span', { class: `age${old ? ' old' : ''}`, title: `Waiting since ${new Date(task.waitingSince).toLocaleString()}` },
+        L.waitingAge(task.waitingSince, now))
+      : null,
+    scheduledTag(task),
+    h('button', { type: 'button', class: 'icon-btn t-remove', 'aria-label': 'Delete task', title: 'Delete task' }, '×'),
+    waiting ? h('input', {
+      type: 'text', class: 't-waiting-on', placeholder: 'waiting on…', value: task.waitingOn, 'aria-label': 'Waiting on', autocomplete: 'off',
+    }) : null,
+  );
+}
+
+function renderTasks() {
+  // Don't rebuild under the user's cursor: while typing in a card, or mid-drag.
+  if (taskDrag?.moved || (lanesEl.contains(document.activeElement) && document.activeElement.matches('input'))) return;
+  lanesEl.replaceChildren(...LANES.map(({ status, label }) => {
+    const tasks = state.tasks.filter((t) => t.status === status);
+    const collapsed = status === 'done' && !state.showDone;
+    const count = h('span', { class: 'count' }, String(tasks.length));
+    return h('section', { class: `lane ${status}${collapsed ? ' collapsed' : ''}`, 'data-status': status },
+      status === 'done'
+        ? h('button', { type: 'button', class: 'lane-head toggle', 'aria-expanded': String(!collapsed) },
+          h('span', {}, label), count, h('span', { class: 'caret' }, collapsed ? '▸' : '▾'))
+        : h('div', { class: 'lane-head' }, h('span', {}, label), count),
+      collapsed ? null : h('ol', { class: 'lane-list' }, tasks.map(taskCard)));
+  }));
+}
+
+function addTask(title) {
+  state.tasks.push({
+    id: uid(), title, status: 'backlog', waitingOn: '', waitingSince: null,
+    createdAt: Date.now(), doneAt: null, scheduled: null,
+  });
+  persistTasks();
+  renderTasks();
+}
+
+function renameTask(task, title) {
+  if (!title) {
+    state.tasks = state.tasks.filter((t) => t !== task);
+  } else if (title !== task.title) {
+    // Unsaved blocks made from this task follow the new name.
+    for (const r of state.rows) if (r.taskId === task.id && r.title === task.title) r.title = title;
+    task.title = title;
+    onRowsChanged();
+  }
+  persistTasks();
+}
+
+function editTaskTitle(taskId) {
+  const task = state.tasks.find((t) => t.id === taskId);
+  const span = lanesEl.querySelector(`[data-task-id="${taskId}"] .task-title`);
+  if (!task || !span) return;
+  const input = h('input', { type: 'text', class: 't-title', value: task.title, 'aria-label': 'Task title', autocomplete: 'off' });
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+/** Make sure the "Tasks" calendar is shown on the calendar and conflict-checked. */
+function ensureTasksCalChecked() {
+  if (!state.tasksCalId || !state.checkIds || state.checkIds.includes(state.tasksCalId)) return;
+  state.checkIds = state.calendars.map((c) => c.id).filter((id) => id === state.tasksCalId || state.checkIds.includes(id));
+  persistSettings();
+  state.dayCache.clear();
+  renderSettings();
+  loadAgendaDay();
+}
+
+function clearLaneMarks() {
+  lanesEl.querySelectorAll('.drop-line').forEach((el) => el.remove());
+  lanesEl.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
+}
+
+const autoScroll = (el, y) => {
+  const rect = el.getBoundingClientRect();
+  if (y < rect.top + 24) el.scrollTop -= 8;
+  else if (y > rect.bottom - 24) el.scrollTop += 8;
+};
+
+/** Work out where a dragged task would land: a spot on the calendar, or a position in a lane. */
+function updateTaskDrop(e) {
+  const d = taskDrag;
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  clearLaneMarks();
+  d.lane = null;
+  if (under?.closest('#timeline .tl-body')) {
+    autoScroll($('#timeline'), e.clientY);
+    const s = clamp(Math.floor(minutesAt(e.clientY) / SNAP) * SNAP, 0, Math.floor((DAY_END - DEFAULT_DURATION) / SNAP) * SNAP);
+    const date = dateAt(e.clientX);
+    if (!taskGhost || taskGhost.s !== s || taskGhost.date !== date) {
+      taskGhost = { date, s, e: s + DEFAULT_DURATION, title: d.title, task: true };
+      renderAgenda();
+    }
+    return;
+  }
+  if (taskGhost) { taskGhost = null; renderAgenda(); }
+  const lane = under?.closest('.lane');
+  if (!lane || !lanesEl.contains(lane)) return;
+  autoScroll(lanesEl, e.clientY);
+  lane.classList.add('drop-target');
+  d.lane = lane.dataset.status;
+  const list = lane.querySelector('.lane-list');
+  if (!list) { d.index = 0; return; }
+  const cards = [...list.querySelectorAll('.task-card')].filter((c) => c.dataset.taskId !== d.taskId);
+  d.index = cards.filter((c) => { const r = c.getBoundingClientRect(); return r.top + r.height / 2 < e.clientY; }).length;
+  list.insertBefore(h('li', { class: 'drop-line', 'aria-hidden': 'true' }), cards[d.index] || null);
+}
+
+function endTaskDrag() {
+  const d = taskDrag;
+  taskDrag = null;
+  if (lanesEl.hasPointerCapture?.(d.pointerId)) lanesEl.releasePointerCapture(d.pointerId);
+  d.chip?.remove();
+  document.body.classList.remove('task-dragging');
+  clearLaneMarks();
+  if (taskGhost) { taskGhost = null; renderAgenda(); }
+  if (d.moved) renderTasks();
+  return d;
+}
+
+function wireTasks() {
+  $('#newTask').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const title = e.target.value.trim();
+    if (!title) return;
+    e.target.value = '';
+    addTask(title);
+  });
+
+  lanesEl.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || taskDrag || drag) return;
+    const card = e.target.closest('.task-card');
+    if (!card || e.target.closest('input, button, a')) return;
+    if (e.pointerType === 'touch' && !e.target.closest('.grip-dots')) return; // touch elsewhere scrolls
+    taskDrag = {
+      taskId: card.dataset.taskId, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY,
+      moved: false, onTitle: !!e.target.closest('.task-title'),
+    };
+    lanesEl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  lanesEl.addEventListener('pointermove', (e) => {
+    const d = taskDrag;
+    if (!d || e.pointerId !== d.pointerId) return;
+    if (!d.moved) {
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
+      d.moved = true;
+      d.title = state.tasks.find((t) => t.id === d.taskId)?.title || '';
+      d.chip = h('div', { class: 'task-chip' }, d.title);
+      document.body.append(d.chip);
+      document.body.classList.add('task-dragging');
+      lanesEl.querySelector(`[data-task-id="${d.taskId}"]`)?.classList.add('dragging');
+    }
+    d.chip.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 8}px)`;
+    updateTaskDrop(e);
+  });
+
+  lanesEl.addEventListener('pointerup', (e) => {
+    if (!taskDrag || e.pointerId !== taskDrag.pointerId) return;
+    if (taskDrag.moved) updateTaskDrop(e); // land exactly where the pointer was released
+    const ghost = taskGhost;
+    const d = endTaskDrag();
+    if (!d.moved) {
+      if (d.onTitle) editTaskTitle(d.taskId);
+      return;
+    }
+    const task = state.tasks.find((t) => t.id === d.taskId);
+    if (!task) return;
+    if (ghost) {
+      addBlock(ghost.date, toHM(ghost.s), toHM(ghost.e), { title: task.title, taskId: task.id });
+      ensureTasksCalChecked();
+    } else if (d.lane) {
+      state.tasks = L.moveTask(state.tasks, task.id, d.lane, d.index, Date.now());
+      persistTasks();
+      renderTasks();
+    }
+  });
+
+  lanesEl.addEventListener('pointercancel', (e) => {
+    if (taskDrag && e.pointerId === taskDrag.pointerId) endTaskDrag();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && taskDrag) endTaskDrag();
+  });
+
+  lanesEl.addEventListener('click', (e) => {
+    if (e.target.closest('.lane-head.toggle')) {
+      state.showDone = !state.showDone;
+      persistSettings();
+      renderTasks();
+      return;
+    }
+    const task = taskOf(e.target);
+    if (!task) return;
+    if (e.target.closest('.t-remove')) {
+      state.tasks = state.tasks.filter((t) => t !== task);
+      persistTasks();
+      renderTasks();
+    } else if (e.target.closest('.sched.draft')) {
+      const row = draftForTask(task);
+      if (row) focusRow(row.id);
+    }
+  });
+
+  lanesEl.addEventListener('input', (e) => {
+    if (!e.target.classList.contains('t-waiting-on')) return;
+    const task = taskOf(e.target);
+    if (!task) return;
+    task.waitingOn = e.target.value;
+    persistTasks();
+  });
+
+  lanesEl.addEventListener('keydown', (e) => {
+    if (!e.target.matches('.t-title, .t-waiting-on')) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.target.blur();
+    } else if (e.key === 'Escape' && e.target.classList.contains('t-title')) {
+      e.target.dataset.cancel = '1';
+      e.target.blur();
+    }
+  });
+
+  lanesEl.addEventListener('focusout', (e) => {
+    const t = e.target;
+    if (t.classList.contains('t-title') && !t.dataset.cancel) {
+      const task = taskOf(t);
+      if (task) renameTask(task, t.value.trim());
+    }
+    setTimeout(renderTasks, 0);
+  });
+}
+
 // ---------------------------------------------------------------- row editing
 
 function focusRow(id, selector = '.f-title') {
@@ -784,6 +1098,7 @@ function onRowsChanged({ structural = true } = {}) {
   else state.rows.forEach((r) => renderRowStatus(r));
   renderActions();
   renderAgenda();
+  renderTasks();
   scheduleAutoCheck();
 }
 
@@ -954,8 +1269,11 @@ async function onCheck() {
 }
 
 async function onSave() {
-  const target = state.calendars.find((c) => c.id === state.targetId);
-  if (!target) { flash('bad', 'Choose a calendar to save to under ⚙ Save to.'); $('#settings').open = true; return; }
+  if (saveableRows().some((r) => !rowCalendar(r))) {
+    flash('bad', 'Choose a calendar to save to under ⚙ Save to.');
+    $('#settings').open = true;
+    return;
+  }
   const planned = saveableRows().map((r) => r.id);
   if (!planned.length) return;
   try {
@@ -975,17 +1293,23 @@ async function onSave() {
     }
     const rows = state.rows.filter((r) => planned.includes(r.id));
     rows.forEach((r) => state.saveErrors.delete(r.id));
-    const res = await gcal.mapLimit(rows, 3, (row) => gcal.insertEvent(target.id, L.buildEventPayload(row, TZ)));
+    const cals = rows.map(rowCalendar);
+    const res = await gcal.mapLimit(rows, 3, (row, i) => gcal.insertEvent(cals[i].id, L.buildEventPayload(row, TZ)));
     const saved = [];
     res.forEach((r, i) => {
       if (r.ok) {
         saved.push({
-          calendarId: target.id, eventId: r.value.id, link: r.value.htmlLink,
+          calendarId: cals[i].id, calendarName: cals[i].name, eventId: r.value.id, link: r.value.htmlLink,
           row: { ...rows[i], repeat: { ...rows[i].repeat, days: [...rows[i].repeat.days] } },
         });
       }
       else state.saveErrors.set(rows[i].id, r.error.message);
     });
+    for (const s of saved) {
+      const task = s.row.taskId && state.tasks.find((t) => t.id === s.row.taskId);
+      if (task) task.scheduled = { date: L.firstOccurrence(s.row), start: s.row.start, end: s.row.end, link: s.link, eventId: s.eventId };
+    }
+    persistTasks();
     const savedIds = new Set(saved.map((s) => s.row.id));
     state.rows = state.rows.filter((r) => !savedIds.has(r.id));
     ensureTrailingBlank();
@@ -996,7 +1320,7 @@ async function onSave() {
     if (saved.length) {
       state.checkedSig = null;
       flash(failed ? 'bad' : 'ok', [
-        h('span', {}, `Saved ${plural(saved.length, 'block')} to ${target.name}.`),
+        h('span', {}, `Saved ${plural(saved.length, 'block')} to ${[...new Set(saved.map((s) => s.calendarName))].join(' and ')}.`),
         h('button', { type: 'button', class: 'btn', onclick: onUndo }, 'Undo'),
         h('ul', {}, saved.map((s) => h('li', {},
           h('a', { href: s.link, target: '_blank', rel: 'noopener' }, s.row.title),
@@ -1028,6 +1352,11 @@ async function onUndo() {
   state.lastSaved = failed.length ? failed : null;
   state.rows = state.rows.filter((r) => !L.isBlank(r) || r.start || r.end);
   state.rows.push(...restored.map((s) => newRow({ ...s.row, id: uid() })));
+  for (const s of restored) {
+    const task = s.row.taskId && state.tasks.find((t) => t.id === s.row.taskId);
+    if (task?.scheduled?.eventId === s.eventId) task.scheduled = null;
+  }
+  persistTasks();
   ensureTrailingBlank();
   state.dayCache.clear();
   flash(failed.length ? 'bad' : 'ok', failed.length
@@ -1081,8 +1410,9 @@ async function afterSignIn() {
     const byName = state.calendars.find((c) => c.name?.trim().toLowerCase() === TARGET_CALENDAR_NAME.toLowerCase());
     state.targetId = byName?.id || null;
   }
+  state.tasksCalId = state.calendars.find((c) => c.name?.trim().toLowerCase() === TASKS_CALENDAR_NAME.toLowerCase())?.id || null;
   const known = new Set(state.calendars.map((c) => c.id));
-  if (!state.checkIds) state.checkIds = [primary?.id, state.targetId].filter(Boolean);
+  if (!state.checkIds) state.checkIds = [primary?.id, state.targetId, state.tasksCalId].filter(Boolean);
   state.checkIds = state.checkIds.filter((id) => known.has(id));
   persistSettings();
   if (!state.targetId) {
@@ -1146,6 +1476,7 @@ function wire() {
   }
 
   wireTimelineDrag();
+  wireTasks();
 
   $('#signInBtn').addEventListener('click', doSignIn);
   $('#signOutBtn').addEventListener('click', () => {
@@ -1208,7 +1539,7 @@ function wire() {
   window.addEventListener('hashchange', applyHash);
   window.addEventListener('beforeunload', persistDraft);
   // Keep the "now" line and "today" label current if the tab stays open.
-  setInterval(renderAgenda, 5 * 60_000);
+  setInterval(() => { renderAgenda(); renderTasks(); }, 5 * 60_000);
 }
 
 async function main() {

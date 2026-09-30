@@ -330,3 +330,41 @@ export function assignLanes(items) {
   if (cluster.length) flush();
   return items;
 }
+
+// ---------------------------------------------------------------- tasks
+
+export const TASK_STATUSES = ['backlog', 'waiting', 'doing', 'done'];
+
+/** Compact age like "5m", "3h", "2d", "3w" for how long something has been waiting. */
+export function waitingAge(sinceMs, nowMs) {
+  const mins = Math.max(0, Math.floor((nowMs - sinceMs) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+}
+
+/**
+ * Move task `id` to `status` at position `index` among that lane's other tasks.
+ * Returns a new array; stamps waitingSince / doneAt when the status changes.
+ */
+export function moveTask(tasks, id, status, index, now) {
+  const task = tasks.find((t) => t.id === id);
+  if (!task || !TASK_STATUSES.includes(status)) return tasks;
+  const moved = { ...task, status };
+  if (status !== task.status) {
+    moved.waitingSince = status === 'waiting' ? now : null;
+    moved.doneAt = status === 'done' ? now : null;
+  }
+  const rest = tasks.filter((t) => t.id !== id);
+  const lane = rest.filter((t) => t.status === status);
+  const i = Math.max(0, Math.min(index, lane.length));
+  let at;
+  if (i < lane.length) at = rest.indexOf(lane[i]);
+  else if (lane.length) at = rest.indexOf(lane[lane.length - 1]) + 1;
+  else at = rest.length;
+  rest.splice(at, 0, moved);
+  return rest;
+}

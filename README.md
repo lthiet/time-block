@@ -8,6 +8,7 @@ A small static web app for adding time blocks to Google Calendar in batches. You
 - **Saves to Time Blocking.** Saved blocks are real Google Calendar events, so they sync to every device. You never pick the calendar by hand, and there's an **Undo** after each save.
 - **Week and day view.** The calendar opens in the week view (Monday–Sunday) and takes the right two thirds of the screen on desktop, next to the block list. Switch to Day above the calendar; `#view=day` in the URL opens the day view directly. In the week view you can also drag a new one-off block to another day.
 - **Day agenda.** The panel shows your existing events and the new blocks side by side, including Time Blocking events you've hidden in Google Calendar. Like Google Calendar, drag on an empty slot to draw a block, drag a new block to move it, or drag its bottom edge to change its length (15-minute steps). Click an empty slot for a 1-hour block.
+- **Task board.** The left panel has four lanes: Backlog, Waiting, Doing and Done. Done is collapsed until you click it. Drag cards between lanes. Waiting cards show who you're waiting on and how long you've been waiting, which turns amber after a week. Drag a task onto the calendar to schedule it as a 1-hour block that saves to your **Tasks** calendar. Tasks are stored only in this browser.
 - **Bookmarkable.** Use `…/#date=tomorrow` (or `today`, `mon`, `+2`, `2026-10-01`) to open straight into planning a given day. Unsaved rows are kept as a draft in your browser.
 
 ## Keeping blocks out of the month view
@@ -40,7 +41,7 @@ Google Calendar has no setting to hide a calendar only in the month view. The us
    A Client ID is public by design, so it's safe to commit. The app uses no client secret.
 
 ### 2. Google Calendar
-Make sure you have a calendar named **Time Blocking**. You can use a different name by changing `TARGET_CALENDAR_NAME` in `config.js`, or by picking another calendar under ⚙ in the app.
+Make sure you have a calendar named **Time Blocking**. You can use a different name by changing `TARGET_CALENDAR_NAME` in `config.js`, or by picking another calendar under ⚙ in the app. Scheduled tasks go to a calendar named **Tasks** (`TASKS_CALENDAR_NAME`).
 
 ### 3. GitHub Pages
 1. Push this repo to GitHub.

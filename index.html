@@ -8,9 +8,9 @@
   <meta name="theme-color" content="#2f6fed">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=12"></script>
+  <script type="module" src="js/app.js?v=13"></script>
 </head>
 <body>
   <header class="topbar">
@@ -37,6 +37,13 @@
   </div>
 
   <main class="layout">
+    <section class="panel tasks" aria-label="Tasks">
+      <div class="tasks-head">
+        <input type="text" id="newTask" placeholder="+ Add a task (Enter)" aria-label="New task" autocomplete="off">
+      </div>
+      <div id="lanes" class="lanes" title="Drag a task between lanes, or onto the calendar to schedule it"></div>
+    </section>
+
     <section class="panel entry" aria-label="Time blocks">
       <details class="settings" id="settings">
         <summary>
@@ -96,7 +103,7 @@
   </main>
 
   <footer class="foot muted small">
-    Type times like <kbd>9</kbd> <kbd>0930</kbd> <kbd>1400</kbd> · <kbd>Enter</kbd> next / new row · <kbd>Ctrl+Enter</kbd> check → save · <kbd>Backspace</kbd> on an empty title removes the row · drag on the timeline to add a block, drag a new block to move it or its bottom edge to resize
+    Type times like <kbd>9</kbd> <kbd>0930</kbd> <kbd>1400</kbd> · <kbd>Enter</kbd> next / new row · <kbd>Ctrl+Enter</kbd> check → save · <kbd>Backspace</kbd> on an empty title removes the row · drag on the timeline to add a block, drag a new block to move it or its bottom edge to resize · drag a task onto the calendar to schedule it
   </footer>
 
   <template id="rowTpl">
