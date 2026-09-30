@@ -1,10 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="4" y="8" width="56" height="52" fill="#2f6fed"/>
-  <rect x="4" y="8" width="56" height="14" fill="#1f4fbf"/>
-  <rect x="4" y="16" width="56" height="6" fill="#1f4fbf"/>
-  <rect x="17" y="3" width="6" height="12" fill="#1f4fbf"/>
-  <rect x="41" y="3" width="6" height="12" fill="#1f4fbf"/>
-  <rect x="13" y="28" width="38" height="8" fill="#fff"/>
-  <rect x="13" y="39" width="24" height="8" fill="#fff" opacity=".8"/>
-  <rect x="13" y="50" width="31" height="5" fill="#fff" opacity=".6"/>
+  <!-- Life Manager: a to-do list (left) next to a calendar day with a scheduled block (right). -->
+  <rect x="2" y="2" width="60" height="60" fill="#2f6fed"/>
+  <!-- tasks -->
+  <rect x="9" y="11" width="10" height="10" fill="#fff"/>
+  <path d="M11 16l2.6 2.6L17.5 13" fill="none" stroke="#2f6fed" stroke-width="2.4" stroke-linecap="square"/>
+  <rect x="9" y="27" width="10" height="10" fill="#fff"/>
+  <path d="M11 32l2.6 2.6L17.5 29" fill="none" stroke="#2f6fed" stroke-width="2.4" stroke-linecap="square"/>
+  <rect x="10.5" y="44.5" width="7" height="7" fill="none" stroke="#fff" stroke-width="3"/>
+  <rect x="22" y="14" width="10" height="4" fill="#fff" opacity=".55"/>
+  <rect x="22" y="30" width="10" height="4" fill="#fff" opacity=".55"/>
+  <rect x="22" y="46" width="10" height="4" fill="#fff"/>
+  <!-- calendar day -->
+  <rect x="37" y="9" width="19" height="46" fill="#fff"/>
+  <rect x="37" y="9" width="19" height="7" fill="#1f4fbf"/>
+  <rect x="37" y="25" width="19" height="1.5" fill="#dde1e7"/>
+  <rect x="37" y="36" width="19" height="1.5" fill="#dde1e7"/>
+  <rect x="37" y="47" width="19" height="1.5" fill="#dde1e7"/>
+  <rect x="40" y="39" width="13" height="12" fill="#f4a340"/>
 </svg>

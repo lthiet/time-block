@@ -1,6 +1,6 @@
-# Time Block
+# Life Manager
 
-A small static web app for adding time blocks to Google Calendar in batches. You enter several blocks, the app checks them against your calendars and flags conflicts, and it saves the blocks straight into your **Time Blocking** calendar. There is no backend and no Apps Script: the app runs entirely in your browser and is hosted on GitHub Pages.
+A small static web app for managing your to-dos and time-blocking them into Google Calendar. Tasks live on a kanban-style board. You enter time blocks in batches, the app checks them against your calendars and flags conflicts, and it saves the blocks straight into your **Time Blocking** calendar. There is no backend and no Apps Script: the app runs entirely in your browser and is hosted on GitHub Pages.
 
 - **Batch entry.** Type blocks into a grid. Pressing <kbd>Enter</kbd> adds a new row that starts when the previous block ends.
 - **Conflict check.** New blocks are checked against your primary calendar, Time Blocking, and any other calendars you tick. Blocks also overlap-check each other. Events marked Free, events you declined, and all-day events are ignored (you can switch on all-day events).
@@ -18,7 +18,7 @@ Google Calendar has no setting to hide a calendar only in the month view. The us
 ## One-time setup (~5 minutes)
 
 ### 1. Google Cloud: OAuth Client ID
-1. Go to <https://console.cloud.google.com/> and create a project (e.g. "Time Block").
+1. Go to <https://console.cloud.google.com/> and create a project (e.g. "Life Manager").
 2. **APIs & Services → Library** → enable **Google Calendar API**.
 3. **APIs & Services → OAuth consent screen** (Google Auth Platform):
    - User type **External**. Fill in the app name and your email.

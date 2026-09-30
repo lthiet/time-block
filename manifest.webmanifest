@@ -1,7 +1,7 @@
 {
-  "name": "Time Block",
-  "short_name": "Time Block",
-  "description": "Batch-create time blocks in Google Calendar with conflict checks.",
+  "name": "Life Manager",
+  "short_name": "Life Manager",
+  "description": "Tasks and time blocks in one place, saved to Google Calendar with conflict checks.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
