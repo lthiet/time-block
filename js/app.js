@@ -1,4 +1,4 @@
-import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION } from '../config.js';
+import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION, TASK_DURATION } from '../config.js';
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as L from './logic.js';
@@ -894,10 +894,10 @@ function updateTaskDrop(e) {
   d.lane = null;
   if (under?.closest('#timeline .tl-body')) {
     autoScroll($('#timeline'), e.clientY);
-    const s = clamp(Math.floor(minutesAt(e.clientY) / SNAP) * SNAP, 0, Math.floor((DAY_END - DEFAULT_DURATION) / SNAP) * SNAP);
+    const s = clamp(Math.floor(minutesAt(e.clientY) / SNAP) * SNAP, 0, Math.floor((DAY_END - TASK_DURATION) / SNAP) * SNAP);
     const date = dateAt(e.clientX);
     if (!taskGhost || taskGhost.s !== s || taskGhost.date !== date) {
-      taskGhost = { date, s, e: s + DEFAULT_DURATION, title: d.title, task: true };
+      taskGhost = { date, s, e: s + TASK_DURATION, title: d.title, task: true };
       renderAgenda();
     }
     return;

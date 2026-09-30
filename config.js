@@ -8,5 +8,8 @@ export const TARGET_CALENDAR_NAME = 'Time Blocking';
 // Default duration (minutes) for a new row when the start time is set.
 export const DEFAULT_DURATION = 60;
 
+// Default duration (minutes) for a block created by dragging a task onto the timeline.
+export const TASK_DURATION = 30;
+
 // Calendar that tasks dragged from the task board are saved to (matched by name, case-insensitive).
 export const TASKS_CALENDAR_NAME = 'Tasks';
