@@ -368,3 +368,51 @@ export function moveTask(tasks, id, status, index, now) {
   rest.splice(at, 0, moved);
   return rest;
 }
+
+// ---------------------------------------------------------------- task sync
+
+/** How long a deleted task is remembered so another device's copy doesn't bring it back. */
+export const TASK_TOMBSTONE_TTL = 90 * 86_400_000;
+
+const taskStamp = (t) => t.updatedAt || t.createdAt || 0;
+const taskBody = ({ updatedAt, ...rest }) => JSON.stringify(rest);
+
+/**
+ * Compare the board before and after a local edit. Returns the tasks with `updatedAt`
+ * bumped on the ones that changed, the ids that were removed, and whether the order changed.
+ */
+export function stampTaskChanges(prev, tasks, now) {
+  const before = new Map(prev.map((t) => [t.id, taskBody(t)]));
+  const ids = new Set(tasks.map((t) => t.id));
+  const stamped = tasks.map((t) => (before.get(t.id) === taskBody(t) ? t : { ...t, updatedAt: now }));
+  const removed = prev.filter((t) => !ids.has(t.id)).map((t) => t.id);
+  const reordered = prev.map((t) => t.id).filter((id) => ids.has(id)).join() !== tasks.map((t) => t.id).filter((id) => before.has(id)).join();
+  return { tasks: stamped, removed, reordered };
+}
+
+/**
+ * Merge two task boards `{tasks, deleted: {id: ms}, orderedAt}`. Per task the newer edit wins and
+ * a deletion wins over older edits. Order follows the board that was rearranged last; tasks only the
+ * other board has are added at the end. Unchanged task objects from `a` are kept as-is.
+ */
+export function mergeTaskDocs(a, b, now) {
+  const empty = { tasks: [], deleted: {}, orderedAt: 0 };
+  a = { ...empty, ...a };
+  b = { ...empty, ...b };
+  const deleted = {};
+  for (const src of [a.deleted, b.deleted]) {
+    for (const [id, at] of Object.entries(src || {})) {
+      if (now - at < TASK_TOMBSTONE_TTL && !(deleted[id] >= at)) deleted[id] = at;
+    }
+  }
+  const pick = new Map();
+  for (const t of a.tasks) pick.set(t.id, t);
+  for (const t of b.tasks) {
+    const mine = pick.get(t.id);
+    if (!mine || taskStamp(t) > taskStamp(mine)) pick.set(t.id, t);
+  }
+  const [first, second] = (b.orderedAt || 0) > (a.orderedAt || 0) ? [b, a] : [a, b];
+  const order = [...new Set([...first.tasks, ...second.tasks].map((t) => t.id))];
+  const tasks = order.map((id) => pick.get(id)).filter((t) => !(deleted[t.id] >= taskStamp(t)));
+  return { tasks, deleted, orderedAt: Math.max(a.orderedAt || 0, b.orderedAt || 0) };
+}
