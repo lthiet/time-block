@@ -4,6 +4,7 @@ import {
   parseTime, resolveDate, validateRow, findConflicts,
   normalizeEvent, buildEventPayload, assignLanes, rowsRange, addMinutes,
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
+  stampTaskChanges, mergeTaskDocs,
 } from '../js/logic.js';
 
 const TODAY = '2026-09-27'; // a Sunday
@@ -225,4 +226,41 @@ test('moveTask reorders within and across lanes and stamps times', () => {
   // Reordering inside Waiting keeps the original waitingSince.
   assert.equal(moveTask(w, 'b', 'waiting', 0, 99).find((t) => t.id === 'b').waitingSince, 42);
   assert.equal(moveTask(tasks, 'a', 'done', 0, 7).find((t) => t.id === 'a').doneAt, 7);
+});
+
+test('stampTaskChanges marks edited tasks, removals and reorders', () => {
+  const a = { id: 'a', title: 'A', status: 'backlog', updatedAt: 1 };
+  const b = { id: 'b', title: 'B', status: 'backlog', updatedAt: 1 };
+  const same = stampTaskChanges([a, b], [a, b], 50);
+  assert.deepEqual([same.tasks[0], same.removed, same.reordered], [a, [], false]);
+  const edited = stampTaskChanges([a, b], [{ ...a, title: 'A2' }, b], 50);
+  assert.equal(edited.tasks[0].updatedAt, 50);
+  assert.equal(edited.tasks[1], b);
+  assert.deepEqual(stampTaskChanges([a, b], [b], 50).removed, ['a']);
+  assert.equal(stampTaskChanges([a, b], [b, a], 50).reordered, true);
+  const c = { id: 'c', title: 'C', status: 'backlog' };
+  const added = stampTaskChanges([a, b], [a, c, b], 50);
+  assert.equal(added.reordered, false);
+  assert.equal(added.tasks[1].updatedAt, 50);
+});
+
+test('mergeTaskDocs keeps the newest edit, honours deletions and unions both boards', () => {
+  const now = 1_000_000;
+  const t = (id, updatedAt, extra = {}) => ({ id, title: id, status: 'backlog', createdAt: 1, updatedAt, ...extra });
+  const local = { tasks: [t('a', 10), t('b', 20, { title: 'local' }), t('gone', 5)], deleted: {}, orderedAt: 100 };
+  const remote = { tasks: [t('b', 30, { title: 'remote' }), t('c', 10)], deleted: { gone: 6 }, orderedAt: 50 };
+  const m = mergeTaskDocs(local, remote, now);
+  assert.deepEqual(m.tasks.map((x) => x.id), ['a', 'b', 'c']);
+  assert.equal(m.tasks[1].title, 'remote');
+  assert.equal(m.tasks[0], local.tasks[0]);
+  assert.deepEqual(m.deleted, { gone: 6 });
+  assert.equal(m.orderedAt, 100);
+  // An edit made after the deletion brings the task back.
+  assert.deepEqual(mergeTaskDocs({ tasks: [t('x', 9)] }, { tasks: [], deleted: { x: 8 } }, now).tasks.map((x) => x.id), ['x']);
+  // The board rearranged last decides the order.
+  const o = mergeTaskDocs({ tasks: [t('a', 1), t('b', 1)], orderedAt: 1 }, { tasks: [t('b', 1), t('a', 1)], orderedAt: 2 }, now);
+  assert.deepEqual(o.tasks.map((x) => x.id), ['b', 'a']);
+  // Old tombstones are forgotten; tasks without updatedAt fall back to createdAt.
+  assert.deepEqual(mergeTaskDocs({ tasks: [], deleted: { z: 1 } }, null, now + 100 * 86_400_000).deleted, {});
+  assert.equal(mergeTaskDocs({ tasks: [{ id: 'y', createdAt: 5 }] }, { tasks: [], deleted: { y: 4 } }, now).tasks.length, 1);
 });
