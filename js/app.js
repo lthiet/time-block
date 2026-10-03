@@ -1,6 +1,7 @@
 import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION, TASK_DURATION } from '../config.js';
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
+import * as drive from './drive.js';
 import * as L from './logic.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -8,6 +9,9 @@ const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const DRAFT_KEY = 'tb.draft';
 const SETTINGS_KEY = 'tb.settings';
 const TASKS_KEY = 'tb.tasks';
+const TASKS_META_KEY = 'tb.tasksMeta'; // {deleted: {id: ms}, orderedAt} — what Drive sync needs to merge
+const SYNC_DEBOUNCE = 1500;
+const SYNC_MIN_GAP = 20_000; // when coming back to the tab
 const DAY_CACHE_TTL = 60_000;
 
 const todayStr = () => L.ymd(new Date());
@@ -72,6 +76,20 @@ const state = {
   tasks: [], // [{id, title, status, waitingOn, waitingSince, createdAt, doneAt, scheduled}]
   showDone: false,
   tasksCalId: null, // the "Tasks" calendar that scheduled tasks are saved to
+  tasksDeleted: {}, // id -> ms; remembered so a sync doesn't bring deleted tasks back
+  tasksOrderedAt: 0, // last time tasks were reordered (decides whose order wins on sync)
+};
+
+// Task board sync with Google Drive.
+const sync = {
+  status: 'off', // off | noscope | syncing | ok | error
+  error: '',
+  fileId: null,
+  running: null,
+  again: false,
+  timer: null,
+  lastAt: 0,
+  saved: [], // board as last written to localStorage, to tell which tasks the user changed
 };
 
 function newRow(over = {}) {
@@ -112,15 +130,23 @@ function loadPersisted() {
     }
   } catch { /* ignore */ }
   try {
-    const t = JSON.parse(localStorage.getItem(TASKS_KEY) || 'null');
-    if (Array.isArray(t)) {
-      state.tasks = t.filter((x) => x && x.id && L.TASK_STATUSES.includes(x.status)).map((x) => ({
-        id: String(x.id), title: String(x.title || ''), status: x.status, waitingOn: String(x.waitingOn || ''),
-        waitingSince: x.waitingSince || null, createdAt: x.createdAt || Date.now(), doneAt: x.doneAt || null,
-        scheduled: x.scheduled || null,
-      }));
+    state.tasks = cleanTasks(JSON.parse(localStorage.getItem(TASKS_KEY) || 'null'));
+    const m = JSON.parse(localStorage.getItem(TASKS_META_KEY) || 'null');
+    if (m) {
+      state.tasksDeleted = m.deleted && typeof m.deleted === 'object' ? m.deleted : {};
+      state.tasksOrderedAt = Number(m.orderedAt) || 0;
     }
   } catch { /* ignore */ }
+  sync.saved = state.tasks;
+}
+
+function cleanTasks(t) {
+  if (!Array.isArray(t)) return [];
+  return t.filter((x) => x && x.id && L.TASK_STATUSES.includes(x.status)).map((x) => ({
+    id: String(x.id), title: String(x.title || ''), status: x.status, waitingOn: String(x.waitingOn || ''),
+    waitingSince: x.waitingSince || null, createdAt: x.createdAt || Date.now(), doneAt: x.doneAt || null,
+    scheduled: x.scheduled || null, updatedAt: Number(x.updatedAt) || 0,
+  }));
 }
 
 function persistDraft() {
@@ -140,8 +166,117 @@ function persistSettings() {
   } catch { /* ignore */ }
 }
 
+/** Save the board after a local edit, and queue a sync to Google Drive. */
 function persistTasks() {
-  try { localStorage.setItem(TASKS_KEY, JSON.stringify(state.tasks)); } catch { /* ignore */ }
+  const now = Date.now();
+  const { tasks, removed, reordered } = L.stampTaskChanges(sync.saved, state.tasks, now);
+  state.tasks = tasks;
+  for (const id of removed) state.tasksDeleted[id] = now;
+  if (reordered) state.tasksOrderedAt = now;
+  saveTasksLocal();
+  clearTimeout(sync.timer);
+  sync.timer = setTimeout(syncTasks, SYNC_DEBOUNCE);
+}
+
+function saveTasksLocal() {
+  sync.saved = state.tasks;
+  try {
+    localStorage.setItem(TASKS_KEY, JSON.stringify(state.tasks));
+    localStorage.setItem(TASKS_META_KEY, JSON.stringify({ deleted: state.tasksDeleted, orderedAt: state.tasksOrderedAt }));
+  } catch { /* ignore */ }
+}
+
+const taskDoc = () => ({ version: 1, tasks: state.tasks, deleted: state.tasksDeleted, orderedAt: state.tasksOrderedAt });
+const docKey = (d) => JSON.stringify([d.tasks, d.deleted, d.orderedAt]);
+
+/**
+ * Pull the board from Drive, merge it with this browser's copy, and write the result back.
+ * Runs one at a time; edits made meanwhile trigger another round.
+ */
+async function syncTasks() {
+  clearTimeout(sync.timer);
+  if (!state.signedIn || !auth.isSignedIn()) return; // never pop up a sign-in from the background
+  if (!auth.hasScope(auth.DRIVE_SCOPE)) { setSyncStatus('noscope'); return; }
+  if (sync.running) { sync.again = true; return; }
+  sync.running = (async () => {
+    setSyncStatus('syncing');
+    const files = await drive.readTaskFiles();
+    const remotes = files.filter((f) => f.doc).map((f) => ({ ...f.doc, tasks: cleanTasks(f.doc.tasks) }));
+    // Merge against the board as it is now, after the download (no await between here and the save).
+    const merged = remotes.reduce((acc, r) => L.mergeTaskDocs(acc, r, Date.now()), taskDoc());
+    const changedHere = docKey(merged) !== docKey(taskDoc());
+    if (changedHere) {
+      state.tasks = merged.tasks;
+      state.tasksDeleted = merged.deleted;
+      state.tasksOrderedAt = merged.orderedAt;
+      saveTasksLocal();
+      renderTasks();
+    }
+    const doc = { version: 1, ...merged };
+    const keep = files[0]?.id || null;
+    if (files.length !== 1 || !files[0].doc || docKey(files[0].doc) !== docKey(doc)) {
+      sync.fileId = await drive.writeTaskFile(keep, doc);
+    }
+    // Two devices both created the file on their first sync: fold the extras into the first one.
+    await Promise.all(files.slice(1).map((f) => drive.deleteTaskFile(f.id).catch(() => {})));
+    sync.lastAt = Date.now();
+    setSyncStatus('ok');
+  })();
+  try {
+    await sync.running;
+  } catch (e) {
+    if (e instanceof drive.ScopeError) setSyncStatus('noscope');
+    else setSyncStatus('error', e.message);
+    if (e instanceof gcal.AuthError) setSignedOut();
+  } finally {
+    sync.running = null;
+  }
+  if (sync.again) {
+    sync.again = false;
+    syncTasks();
+  }
+}
+
+function setSyncStatus(status, error = '') {
+  sync.status = status;
+  sync.error = error;
+  renderSyncStatus();
+}
+
+function renderSyncStatus() {
+  const el = $('#taskSync');
+  const status = state.signedIn ? sync.status : 'off';
+  const text = {
+    off: 'Sign in to sync tasks between devices',
+    noscope: 'Tasks are only on this device.',
+    syncing: 'Syncing…',
+    ok: 'Synced with Google Drive',
+    error: 'Sync failed — tasks are saved on this device.',
+  }[status];
+  const parts = [h('span', {}, text)];
+  if (status === 'noscope') {
+    parts.push(' ', h('button', { type: 'button', class: 'linkish', onclick: allowDriveSync }, 'Allow sync'));
+  } else if (status === 'error') {
+    parts.push(' ', h('button', { type: 'button', class: 'linkish', onclick: () => syncTasks() }, 'Retry'));
+  }
+  el.className = `task-sync ${status}`;
+  el.title = status === 'error' ? sync.error : '';
+  el.replaceChildren(...parts);
+}
+
+async function allowDriveSync() {
+  try {
+    await auth.grantMissing();
+  } catch (e) {
+    flash('bad', e.message);
+    return;
+  }
+  if (!auth.hasScope(auth.DRIVE_SCOPE)) {
+    flash('bad', 'Google Drive access was not granted, so tasks stay on this device.');
+    renderSyncStatus();
+    return;
+  }
+  syncTasks();
 }
 
 const isTaskRow = (row) => row.cal === 'tasks';
@@ -1371,6 +1506,9 @@ async function onUndo() {
 function setSignedOut() {
   state.signedIn = false;
   state.email = '';
+  clearTimeout(sync.timer);
+  sync.status = 'off';
+  renderSyncStatus();
   renderAccount();
   renderAll();
 }
@@ -1424,6 +1562,7 @@ async function afterSignIn() {
   renderAll();
   loadAgendaDay();
   scheduleAutoCheck();
+  syncTasks();
 }
 
 // ---------------------------------------------------------------- date bar & hash
@@ -1538,6 +1677,10 @@ function wire() {
 
   window.addEventListener('hashchange', applyHash);
   window.addEventListener('beforeunload', persistDraft);
+  // Pick up task changes made on another device when coming back to this tab.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - sync.lastAt > SYNC_MIN_GAP) syncTasks();
+  });
   // Keep the "now" line and "today" label current if the tab stays open.
   setInterval(() => { renderAgenda(); renderTasks(); }, 5 * 60_000);
 }
@@ -1555,6 +1698,7 @@ async function main() {
   renderAccount();
   renderSettings();
   renderAll();
+  renderSyncStatus();
 
   if (!CLIENT_ID || CLIENT_ID.startsWith('PASTE_')) {
     $('#setupBanner').hidden = false;

@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=16">
+  <link rel="stylesheet" href="styles.css?v=17">
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=13"></script>
+  <script type="module" src="js/app.js?v=14"></script>
 </head>
 <body>
   <header class="topbar">
@@ -43,6 +43,7 @@
     <section class="panel tasks" aria-label="Tasks">
       <div class="tasks-head">
         <input type="text" id="newTask" placeholder="+ Add a task (Enter)" aria-label="New task" autocomplete="off">
+        <div id="taskSync" class="task-sync" role="status"></div>
       </div>
       <div id="lanes" class="lanes" title="Drag a task between lanes, or onto the calendar to schedule it"></div>
     </section>

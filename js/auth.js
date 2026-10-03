@@ -1,9 +1,12 @@
 // Google Identity Services token client wrapper (browser-only OAuth, no backend).
 
-const SCOPES = [
+const CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
-].join(' ');
+];
+// Optional: lets the task board sync between devices. Sign-in still works without it.
+export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+const SCOPES = [...CALENDAR_SCOPES, DRIVE_SCOPE].join(' ');
 
 const STORE_KEY = 'tb.token';
 const HINT_KEY = 'tb.loginHint';
@@ -11,6 +14,7 @@ const HINT_KEY = 'tb.loginHint';
 let tokenClient = null;
 let token = null;
 let expiresAt = 0;
+let granted = '';
 
 function loadGis() {
   return new Promise((resolve, reject) => {
@@ -31,9 +35,11 @@ function loadGis() {
 export async function initAuth(clientId) {
   try {
     const saved = JSON.parse(sessionStorage.getItem(STORE_KEY) || 'null');
-    if (saved && saved.expiresAt > Date.now() + 60_000) {
+    // Tokens saved before Drive sync existed carry no scope list; drop them so sign-in asks again.
+    if (saved && saved.expiresAt > Date.now() + 60_000 && typeof saved.scope === 'string') {
       token = saved.token;
       expiresAt = saved.expiresAt;
+      granted = saved.scope;
     }
   } catch { /* storage unavailable */ }
   await loadGis();
@@ -46,6 +52,11 @@ export async function initAuth(clientId) {
 
 export function isSignedIn() {
   return !!token && expiresAt > Date.now() + 60_000;
+}
+
+/** Whether the current token includes `scope`. */
+export function hasScope(scope) {
+  return isSignedIn() && granted.split(' ').includes(scope);
 }
 
 function getLoginHint() {
@@ -61,12 +72,13 @@ function request(prompt) {
   return new Promise((resolve, reject) => {
     tokenClient.callback = (resp) => {
       if (resp.error) return reject(new Error(resp.error_description || resp.error));
-      if (!window.google.accounts.oauth2.hasGrantedAllScopes(resp, ...SCOPES.split(' '))) {
-        return reject(new Error('Calendar access was not granted. Please allow both permissions.'));
+      if (!window.google.accounts.oauth2.hasGrantedAllScopes(resp, ...CALENDAR_SCOPES)) {
+        return reject(new Error('Calendar access was not granted. Please allow both calendar permissions.'));
       }
       token = resp.access_token;
       expiresAt = Date.now() + Number(resp.expires_in || 3600) * 1000;
-      try { sessionStorage.setItem(STORE_KEY, JSON.stringify({ token, expiresAt })); } catch { /* ignore */ }
+      granted = resp.scope || '';
+      try { sessionStorage.setItem(STORE_KEY, JSON.stringify({ token, expiresAt, scope: granted })); } catch { /* ignore */ }
       resolve(token);
     };
     tokenClient.error_callback = (err) => {
@@ -84,6 +96,11 @@ export function signIn() {
   return request(token || getLoginHint() ? '' : 'select_account');
 }
 
+/** Ask again for permissions that were left unticked (call from a click handler). */
+export function grantMissing() {
+  return request('consent');
+}
+
 /**
  * Returns a valid access token, silently refreshing if needed.
  * Call synchronously at the start of a user-gesture handler so the popup isn't blocked.
@@ -96,6 +113,7 @@ export function getToken() {
 export function invalidateToken() {
   token = null;
   expiresAt = 0;
+  granted = '';
   try { sessionStorage.removeItem(STORE_KEY); } catch { /* ignore */ }
 }
 

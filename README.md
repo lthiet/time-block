@@ -8,8 +8,14 @@ A small static web app for adding time blocks to Google Calendar in batches. You
 - **Saves to Time Blocking.** Saved blocks are real Google Calendar events, so they sync to every device. You never pick the calendar by hand, and there's an **Undo** after each save.
 - **Week and day view.** The calendar opens in the week view (Monday–Sunday) and takes the right two thirds of the screen on desktop, next to the block list. Switch to Day above the calendar; `#view=day` in the URL opens the day view directly. In the week view you can also drag a new one-off block to another day.
 - **Day agenda.** The panel shows your existing events and the new blocks side by side, including Time Blocking events you've hidden in Google Calendar. Like Google Calendar, drag on an empty slot to draw a block, drag a new block to move it, or drag its bottom edge to change its length (15-minute steps). Click an empty slot for a 1-hour block.
-- **Task board.** The left panel has four lanes: Backlog, Waiting, Doing and Done. Done is collapsed until you click it. Drag cards between lanes. Waiting cards show who you're waiting on and how long you've been waiting, which turns amber after a week. Drag a task onto the calendar to schedule it as a 1-hour block that saves to your **Tasks** calendar. Tasks are stored only in this browser.
+- **Task board.** The left panel has four lanes: Backlog, Waiting, Doing and Done. Done is collapsed until you click it. Drag cards between lanes. Waiting cards show who you're waiting on and how long you've been waiting, which turns amber after a week. Drag a task onto the calendar to schedule it as a 1-hour block that saves to your **Tasks** calendar. Tasks sync between your devices through a hidden app folder in your Google Drive (see below).
 - **Bookmarkable.** Use `…/#date=tomorrow` (or `today`, `mon`, `+2`, `2026-10-01`) to open straight into planning a given day. Unsaved rows are kept as a draft in your browser.
+
+## Task sync
+
+The task board is saved in your browser and in a `tasks.json` file in your Google Drive's hidden app data folder. Only this app can see that folder; it doesn't appear in your Drive and the app can't see your other files. The app syncs after every change, when you sign in, and when you come back to the tab, so each device picks up what you did on the others. If two devices change the same task, the most recent change wins. A task deleted on one device is deleted everywhere.
+
+The Drive permission is optional. If you leave it unticked, tasks stay on that device and the board shows an **Allow sync** link. Since sync was added, you'll be asked to sign in once more the first time you open the app.
 
 ## Keeping blocks out of the month view
 
@@ -19,13 +25,14 @@ Google Calendar has no setting to hide a calendar only in the month view. The us
 
 ### 1. Google Cloud: OAuth Client ID
 1. Go to <https://console.cloud.google.com/> and create a project (e.g. "Time Block").
-2. **APIs & Services → Library** → enable **Google Calendar API**.
+2. **APIs & Services → Library** → enable **Google Calendar API** and **Google Drive API**.
 3. **APIs & Services → OAuth consent screen** (Google Auth Platform):
    - User type **External**. Fill in the app name and your email.
-   - **Data access → Add or remove scopes**: add these two (paste them into *Manually add scopes* if they aren't listed; the Calendar API must be enabled first):
+   - **Data access → Add or remove scopes**: add these three (paste them into *Manually add scopes* if they aren't listed; the Calendar and Drive APIs must be enabled first):
      ```
      https://www.googleapis.com/auth/calendar.events
      https://www.googleapis.com/auth/calendar.calendarlist.readonly
+     https://www.googleapis.com/auth/drive.appdata
      ```
    - **Audience → Test users**: add your own Google account. For personal use you can leave the app in *Testing*, and no verification is needed.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
