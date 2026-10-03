@@ -346,27 +346,108 @@ export function waitingAge(sinceMs, nowMs) {
   return `${Math.floor(days / 7)}w`;
 }
 
+/** The task with its status changed, stamping waitingSince / doneAt when it really changes. */
+function withStatus(task, status, now) {
+  if (task.status === status) return task;
+  return { ...task, status, waitingSince: status === 'waiting' ? now : null, doneAt: status === 'done' ? now : null };
+}
+
+/** A subtask put in its parent's lane, with the parent's waiting / done times. */
+function inLaneOf(task, parent) {
+  if (task.status === parent.status) return task;
+  return { ...task, status: parent.status, waitingSince: parent.waitingSince ?? null, doneAt: parent.doneAt ?? null };
+}
+
 /**
- * Move task `id` to `status` at position `index` among that lane's other tasks.
+ * Move task `id` to `status`, just before task `beforeId` (null = end of that lane).
  * Returns a new array; stamps waitingSince / doneAt when the status changes.
+ * A group stays in one lane: a task's subtasks move with it, and a subtask moved to another lane
+ * leaves its group and becomes a top-level task there.
  */
-export function moveTask(tasks, id, status, index, now) {
-  const task = tasks.find((t) => t.id === id);
+export function moveTask(tasks, id, status, beforeId, now) {
+  const byId = tasksById(tasks);
+  const task = byId.get(id);
   if (!task || !TASK_STATUSES.includes(status)) return tasks;
-  const moved = { ...task, status };
-  if (status !== task.status) {
-    moved.waitingSince = status === 'waiting' ? now : null;
-    moved.doneAt = status === 'done' ? now : null;
+  let moved = withStatus(task, status, now);
+  const parentId = effectiveParentId(task, byId);
+  if (parentId && byId.get(parentId).status !== status) moved = { ...moved, parentId: null };
+  let rest = tasks.filter((t) => t.id !== id);
+  if (!parentId) rest = rest.map((t) => (t.parentId === id ? inLaneOf(t, moved) : t));
+  let at = beforeId ? rest.findIndex((t) => t.id === beforeId) : -1;
+  if (at < 0) {
+    const lane = rest.filter((t) => t.status === status);
+    at = lane.length ? rest.indexOf(lane[lane.length - 1]) + 1 : rest.length;
   }
-  const rest = tasks.filter((t) => t.id !== id);
-  const lane = rest.filter((t) => t.status === status);
-  const i = Math.max(0, Math.min(index, lane.length));
-  let at;
-  if (i < lane.length) at = rest.indexOf(lane[i]);
-  else if (lane.length) at = rest.indexOf(lane[lane.length - 1]) + 1;
-  else at = rest.length;
   rest.splice(at, 0, moved);
   return rest;
+}
+
+// ---------------------------------------------------------------- subtasks
+
+export const tasksById = (tasks) => new Map(tasks.map((t) => [t.id, t]));
+
+/**
+ * Id of the task's parent, or null when it is a top-level task. Only one level of nesting counts:
+ * a parent that is missing (deleted on another device) or is itself a subtask is ignored.
+ */
+export function effectiveParentId(task, byId) {
+  const p = task.parentId ? byId.get(task.parentId) : null;
+  if (!p || p.id === task.id || (p.parentId && byId.has(p.parentId))) return null;
+  return p.id;
+}
+
+/** Subtasks of top-level task `id`, in board order. */
+export function subtasksOf(tasks, id) {
+  return tasks.filter((t) => t.parentId === id && t.id !== id);
+}
+
+/**
+ * Make task `id` a subtask of `parentId` (placed after the parent's other subtasks, taking the
+ * parent's lane), or a top-level task again when `parentId` is null. Nesting that would go more
+ * than one level deep is refused and returns `tasks` unchanged.
+ */
+export function nestTask(tasks, id, parentId) {
+  const byId = tasksById(tasks);
+  const task = byId.get(id);
+  if (!task) return tasks;
+  if (!parentId) {
+    return task.parentId ? tasks.map((t) => (t === task ? { ...t, parentId: null } : t)) : tasks;
+  }
+  const parent = byId.get(parentId);
+  if (!parent || parentId === id || effectiveParentId(parent, byId) || subtasksOf(tasks, id).length) return tasks;
+  const moved = { ...inLaneOf(task, parent), parentId };
+  const rest = tasks.filter((t) => t !== task);
+  const siblings = subtasksOf(rest, parentId);
+  const after = siblings.length ? siblings[siblings.length - 1] : parent;
+  rest.splice(rest.indexOf(after) + 1, 0, moved);
+  return rest;
+}
+
+/**
+ * Put every subtask in its parent's lane (e.g. after syncing edits from two devices).
+ * Returns `tasks` itself when nothing needed fixing.
+ */
+export function alignSubtasks(tasks) {
+  const byId = tasksById(tasks);
+  let changed = false;
+  const out = tasks.map((t) => {
+    const pid = effectiveParentId(t, byId);
+    const fixed = pid ? inLaneOf(t, byId.get(pid)) : t;
+    if (fixed !== t) changed = true;
+    return fixed;
+  });
+  return changed ? out : tasks;
+}
+
+/** Remove task `id` together with its subtasks. */
+export function removeTask(tasks, id) {
+  return tasks.filter((t) => t.id !== id && t.parentId !== id);
+}
+
+/** Calendar block title for a task: "Parent: Subtask" for subtasks. */
+export function taskBlockTitle(task, byId) {
+  const pid = effectiveParentId(task, byId);
+  return pid ? `${byId.get(pid).title}: ${task.title}` : task.title;
 }
 
 // ---------------------------------------------------------------- task sync

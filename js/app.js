@@ -2,7 +2,7 @@ import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION,
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as drive from './drive.js';
-import * as L from './logic.js';
+import * as L from './logic.js?v=18'; // bump with app.js?v= in index.html
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -73,8 +73,10 @@ const state = {
   dayCache: new Map(), // date -> {at, events}
   signedIn: false,
   email: '',
-  tasks: [], // [{id, title, status, waitingOn, waitingSince, createdAt, doneAt, scheduled}]
+  tasks: [], // [{id, title, status, parentId, waitingOn, waitingSince, createdAt, doneAt, scheduled}]
   showDone: false,
+  expanded: new Set(), // task ids whose subtasks are shown
+  addingSubTo: null, // task id showing the "+ subtask" input
   tasksCalId: null, // the "Tasks" calendar that scheduled tasks are saved to
   tasksDeleted: {}, // id -> ms; remembered so a sync doesn't bring deleted tasks back
   tasksOrderedAt: 0, // last time tasks were reordered (decides whose order wins on sync)
@@ -116,6 +118,7 @@ function loadPersisted() {
       state.includeAllDay = !!s.includeAllDay;
       state.view = s.calView === 'day' ? 'day' : 'week';
       state.showDone = !!s.showDone;
+      state.expanded = new Set(Array.isArray(s.expanded) ? s.expanded : []);
     }
   } catch { /* ignore */ }
   try {
@@ -130,7 +133,7 @@ function loadPersisted() {
     }
   } catch { /* ignore */ }
   try {
-    state.tasks = cleanTasks(JSON.parse(localStorage.getItem(TASKS_KEY) || 'null'));
+    state.tasks = L.alignSubtasks(cleanTasks(JSON.parse(localStorage.getItem(TASKS_KEY) || 'null')));
     const m = JSON.parse(localStorage.getItem(TASKS_META_KEY) || 'null');
     if (m) {
       state.tasksDeleted = m.deleted && typeof m.deleted === 'object' ? m.deleted : {};
@@ -143,7 +146,8 @@ function loadPersisted() {
 function cleanTasks(t) {
   if (!Array.isArray(t)) return [];
   return t.filter((x) => x && x.id && L.TASK_STATUSES.includes(x.status)).map((x) => ({
-    id: String(x.id), title: String(x.title || ''), status: x.status, waitingOn: String(x.waitingOn || ''),
+    id: String(x.id), title: String(x.title || ''), status: x.status, parentId: x.parentId ? String(x.parentId) : null,
+    waitingOn: String(x.waitingOn || ''),
     waitingSince: x.waitingSince || null, createdAt: x.createdAt || Date.now(), doneAt: x.doneAt || null,
     scheduled: x.scheduled || null, updatedAt: Number(x.updatedAt) || 0,
   }));
@@ -161,7 +165,7 @@ function persistSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
       targetId: state.targetId, checkIds: state.checkIds, includeAllDay: state.includeAllDay, calView: state.view,
-      showDone: state.showDone,
+      showDone: state.showDone, expanded: [...state.expanded].filter((id) => state.tasks.some((t) => t.id === id)),
     }));
   } catch { /* ignore */ }
 }
@@ -204,6 +208,7 @@ async function syncTasks() {
     const remotes = files.filter((f) => f.doc).map((f) => ({ ...f.doc, tasks: cleanTasks(f.doc.tasks) }));
     // Merge against the board as it is now, after the download (no await between here and the save).
     const merged = remotes.reduce((acc, r) => L.mergeTaskDocs(acc, r, Date.now()), taskDoc());
+    merged.tasks = L.alignSubtasks(merged.tasks); // edits from two devices can split a group
     const changedHere = docKey(merged) !== docKey(taskDoc());
     if (changedHere) {
       state.tasks = merged.tasks;
@@ -912,7 +917,8 @@ const LANES = [
 ];
 const OLD_WAIT_MS = 7 * 24 * 60 * 60_000; // waiting longer than this is highlighted
 const lanesEl = $('#lanes');
-let taskDrag = null; // {taskId, pointerId, startX, startY, moved, onTitle, title, chip, lane, index}
+let taskDrag = null; // {taskId, pointerId, startX, startY, moved, onTitle, title, chip, lane, beforeId, nestInto}
+let addingSub = false; // adding a subtask from its input (which is re-rendered meanwhile)
 let taskGhost = null; // {date, s, e, title, task} while a task hovers over the calendar
 
 const taskOf = (el) => state.tasks.find((t) => t.id === el.closest('.task-card')?.dataset.taskId);
@@ -934,18 +940,27 @@ function scheduledTag(task) {
     `${fmtDay(s.date)} ${s.start}`);
 }
 
-function taskCard(task) {
+/** One card. `sub` = shown nested under its parent; `subs` = the task's own subtasks (top-level tasks). */
+function taskCard(task, { byId, sub = false, subs = [], open = false } = {}) {
   const now = Date.now();
-  const waiting = task.status === 'waiting';
+  const parentId = L.effectiveParentId(task, byId);
+  const waiting = task.status === 'waiting' && !parentId; // a group waits as one, on its parent card
   const old = waiting && task.waitingSince && now - task.waitingSince > OLD_WAIT_MS;
-  return h('li', { class: `task-card${taskDrag?.moved && taskDrag.taskId === task.id ? ' dragging' : ''}`, 'data-task-id': task.id },
+  return h(sub ? 'li' : 'div', { class: `task-card${sub ? ' sub' : ''}`, 'data-task-id': task.id },
     h('span', { class: 'grip-dots', 'aria-hidden': 'true' }, '⋮⋮'),
-    h('span', { class: 'task-title', title: 'Click to edit · drag to another lane or onto the calendar' }, task.title),
+    h('span', { class: 'task-title', title: 'Click to edit · drag to another lane, onto another task, or onto the calendar' }, task.title),
     waiting && task.waitingSince
       ? h('span', { class: `age${old ? ' old' : ''}`, title: `Waiting since ${new Date(task.waitingSince).toLocaleString()}` },
         L.waitingAge(task.waitingSince, now))
       : null,
     scheduledTag(task),
+    subs.length ? h('button', {
+      type: 'button', class: 'sub-toggle', 'aria-expanded': String(open),
+      title: `${plural(subs.length, 'subtask')} · click to ${open ? 'hide' : 'show'}`,
+    }, `${open ? '▾' : '▸'} ${subs.length}`) : null,
+    parentId
+      ? h('button', { type: 'button', class: 'icon-btn t-detach', 'aria-label': 'Make top-level task', title: 'Make top-level task' }, '⇱')
+      : h('button', { type: 'button', class: 'icon-btn t-add-sub', 'aria-label': 'Add subtask', title: 'Add subtask' }, '+'),
     h('button', { type: 'button', class: 'icon-btn t-remove', 'aria-label': 'Delete task', title: 'Delete task' }, '×'),
     waiting ? h('input', {
       type: 'text', class: 't-waiting-on', placeholder: 'waiting on…', value: task.waitingOn, 'aria-label': 'Waiting on', autocomplete: 'off',
@@ -953,11 +968,26 @@ function taskCard(task) {
   );
 }
 
-function renderTasks() {
+/** A top-level entry in a lane: the card, plus its subtasks (always in the same lane) when expanded. */
+function taskItem(task, byId) {
+  const subs = L.subtasksOf(state.tasks, task.id);
+  const open = state.expanded.has(task.id) && (subs.length > 0 || state.addingSubTo === task.id);
+  return h('li', { class: 'task-item', 'data-task-id': task.id },
+    taskCard(task, { byId, subs, open }),
+    open ? h('ol', { class: 'subtasks' },
+      subs.map((t) => taskCard(t, { byId, sub: true })),
+      state.addingSubTo === task.id ? h('li', { class: 'sub-new' },
+        h('input', { type: 'text', class: 't-sub-new', placeholder: '+ subtask (Enter)', 'aria-label': 'New subtask', autocomplete: 'off' })) : null,
+    ) : null);
+}
+
+function renderTasks({ force = false } = {}) {
   // Don't rebuild under the user's cursor: while typing in a card, or mid-drag.
-  if (taskDrag?.moved || (lanesEl.contains(document.activeElement) && document.activeElement.matches('input'))) return;
+  if (taskDrag?.moved || (!force && lanesEl.contains(document.activeElement) && document.activeElement.matches('input'))) return;
+  const byId = L.tasksById(state.tasks);
   lanesEl.replaceChildren(...LANES.map(({ status, label }) => {
     const tasks = state.tasks.filter((t) => t.status === status);
+    const top = tasks.filter((t) => !L.effectiveParentId(t, byId));
     const collapsed = status === 'done' && !state.showDone;
     const count = h('span', { class: 'count' }, String(tasks.length));
     return h('section', { class: `lane ${status}${collapsed ? ' collapsed' : ''}`, 'data-status': status },
@@ -965,29 +995,55 @@ function renderTasks() {
         ? h('button', { type: 'button', class: 'lane-head toggle', 'aria-expanded': String(!collapsed) },
           h('span', {}, label), count, h('span', { class: 'caret' }, collapsed ? '▸' : '▾'))
         : h('div', { class: 'lane-head' }, h('span', {}, label), count),
-      collapsed ? null : h('ol', { class: 'lane-list' }, tasks.map(taskCard)));
+      collapsed ? null : h('ol', { class: 'lane-list' }, top.map((t) => taskItem(t, byId))));
   }));
 }
 
-function addTask(title) {
-  state.tasks.push({
-    id: uid(), title, status: 'backlog', waitingOn: '', waitingSince: null,
+function addTask(title, parent = null) {
+  const task = {
+    id: uid(), title, status: 'backlog', parentId: null, waitingOn: '', waitingSince: null,
     createdAt: Date.now(), doneAt: null, scheduled: null,
-  });
+  };
+  state.tasks.push(task);
+  if (parent) state.tasks = L.nestTask(state.tasks, task.id, parent.id); // joins the parent's lane
   persistTasks();
   renderTasks();
 }
 
+/** Delete a task and its subtasks (after asking, when it has any). */
+function deleteTask(task) {
+  const subs = L.subtasksOf(state.tasks, task.id).length;
+  if (subs && !confirm(`Delete “${task.title}” and its ${plural(subs, 'subtask')}?`)) return false;
+  state.tasks = L.removeTask(state.tasks, task.id);
+  state.expanded.delete(task.id);
+  persistTasks();
+  return true;
+}
+
 function renameTask(task, title) {
   if (!title) {
-    state.tasks = state.tasks.filter((t) => t !== task);
+    deleteTask(task);
   } else if (title !== task.title) {
-    // Unsaved blocks made from this task follow the new name.
-    for (const r of state.rows) if (r.taskId === task.id && r.title === task.title) r.title = title;
+    // Unsaved blocks made from this task (or its subtasks) follow the new name.
+    const byId = L.tasksById(state.tasks);
+    const affected = [task, ...L.subtasksOf(state.tasks, task.id)];
+    const before = new Map(affected.map((t) => [t.id, L.taskBlockTitle(t, byId)]));
     task.title = title;
+    for (const r of state.rows) {
+      if (before.has(r.taskId) && r.title === before.get(r.taskId)) r.title = L.taskBlockTitle(byId.get(r.taskId), byId);
+    }
     onRowsChanged();
+    persistTasks();
   }
-  persistTasks();
+}
+
+/** Show the "+ subtask" input under a task and focus it. */
+function openSubInput(taskId) {
+  state.addingSubTo = taskId;
+  state.expanded.add(taskId);
+  persistSettings();
+  renderTasks({ force: true });
+  lanesEl.querySelector('.t-sub-new')?.focus();
 }
 
 function editTaskTitle(taskId) {
@@ -1012,7 +1068,7 @@ function ensureTasksCalChecked() {
 
 function clearLaneMarks() {
   lanesEl.querySelectorAll('.drop-line').forEach((el) => el.remove());
-  lanesEl.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
+  lanesEl.querySelectorAll('.drop-target, .nest-target').forEach((el) => el.classList.remove('drop-target', 'nest-target'));
 }
 
 const autoScroll = (el, y) => {
@@ -1038,16 +1094,47 @@ function updateTaskDrop(e) {
     return;
   }
   if (taskGhost) { taskGhost = null; renderAgenda(); }
+  d.nestInto = null;
+  d.beforeId = null;
   const lane = under?.closest('.lane');
   if (!lane || !lanesEl.contains(lane)) return;
   autoScroll(lanesEl, e.clientY);
   lane.classList.add('drop-target');
   d.lane = lane.dataset.status;
   const list = lane.querySelector('.lane-list');
-  if (!list) { d.index = 0; return; }
-  const cards = [...list.querySelectorAll('.task-card')].filter((c) => c.dataset.taskId !== d.taskId);
-  d.index = cards.filter((c) => { const r = c.getBoundingClientRect(); return r.top + r.height / 2 < e.clientY; }).length;
-  list.insertBefore(h('li', { class: 'drop-line', 'aria-hidden': 'true' }), cards[d.index] || null);
+  if (!list) return;
+  const byId = L.tasksById(state.tasks);
+  const canNest = !L.subtasksOf(state.tasks, d.taskId).length;
+  const card = under.closest('.task-card');
+  const cardTask = card && card.dataset.taskId !== d.taskId ? byId.get(card.dataset.taskId) : null;
+  const below = (els) => els.filter((c) => { const r = c.getBoundingClientRect(); return r.top + r.height / 2 < e.clientY; }).length;
+
+  // Into a parent's list of subtasks: become one of them, at that spot.
+  const subList = under.closest('.subtasks');
+  const subParent = subList?.closest('.task-item').dataset.taskId;
+  if (canNest && subList && subParent !== d.taskId) {
+    const subs = [...subList.querySelectorAll('.task-card.sub')].filter((c) => c.dataset.taskId !== d.taskId);
+    const i = below(subs);
+    d.nestInto = subParent;
+    d.beforeId = subs[i]?.dataset.taskId || null;
+    subList.insertBefore(h('li', { class: 'drop-line', 'aria-hidden': 'true' }), subs[i] || subList.querySelector('.sub-new'));
+    return;
+  }
+  // Onto the middle of a top-level task: become its subtask.
+  if (canNest && cardTask && !card.classList.contains('sub') && !L.effectiveParentId(cardTask, byId)) {
+    const r = card.getBoundingClientRect();
+    if (e.clientY > r.top + r.height / 4 && e.clientY < r.bottom - r.height / 4) {
+      lane.classList.remove('drop-target');
+      card.classList.add('nest-target');
+      d.nestInto = cardTask.id;
+      return;
+    }
+  }
+  // Between top-level tasks.
+  const items = [...list.children].filter((c) => c.classList.contains('task-item') && c.dataset.taskId !== d.taskId);
+  const i = below(items);
+  d.beforeId = items[i]?.dataset.taskId || null;
+  list.insertBefore(h('li', { class: 'drop-line', 'aria-hidden': 'true' }), items[i] || null);
 }
 
 function endTaskDrag() {
@@ -1091,11 +1178,13 @@ function wireTasks() {
     if (!d.moved) {
       if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
       d.moved = true;
-      d.title = state.tasks.find((t) => t.id === d.taskId)?.title || '';
+      const byId = L.tasksById(state.tasks);
+      d.title = byId.has(d.taskId) ? L.taskBlockTitle(byId.get(d.taskId), byId) : '';
       d.chip = h('div', { class: 'task-chip' }, d.title);
       document.body.append(d.chip);
       document.body.classList.add('task-dragging');
-      lanesEl.querySelector(`[data-task-id="${d.taskId}"]`)?.classList.add('dragging');
+      const card = lanesEl.querySelector(`.task-card[data-task-id="${d.taskId}"]`);
+      (card?.parentElement.classList.contains('task-item') ? card.parentElement : card)?.classList.add('dragging');
     }
     d.chip.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 8}px)`;
     updateTaskDrop(e);
@@ -1113,10 +1202,16 @@ function wireTasks() {
     const task = state.tasks.find((t) => t.id === d.taskId);
     if (!task) return;
     if (ghost) {
-      addBlock(ghost.date, toHM(ghost.s), toHM(ghost.e), { title: task.title, taskId: task.id });
+      addBlock(ghost.date, toHM(ghost.s), toHM(ghost.e), { title: L.taskBlockTitle(task, L.tasksById(state.tasks)), taskId: task.id });
       ensureTasksCalChecked();
     } else if (d.lane) {
-      state.tasks = L.moveTask(state.tasks, task.id, d.lane, d.index, Date.now());
+      const now = Date.now();
+      if (d.nestInto) {
+        state.tasks = L.nestTask(state.tasks, task.id, d.nestInto);
+        state.expanded.add(d.nestInto);
+        persistSettings();
+      }
+      state.tasks = L.moveTask(state.tasks, task.id, d.lane, d.beforeId, now);
       persistTasks();
       renderTasks();
     }
@@ -1139,7 +1234,17 @@ function wireTasks() {
     const task = taskOf(e.target);
     if (!task) return;
     if (e.target.closest('.t-remove')) {
-      state.tasks = state.tasks.filter((t) => t !== task);
+      if (deleteTask(task)) renderTasks();
+    } else if (e.target.closest('.sub-toggle')) {
+      if (state.expanded.has(task.id)) state.expanded.delete(task.id);
+      else state.expanded.add(task.id);
+      if (state.addingSubTo === task.id) state.addingSubTo = null;
+      persistSettings();
+      renderTasks();
+    } else if (e.target.closest('.t-add-sub')) {
+      openSubInput(task.id);
+    } else if (e.target.closest('.t-detach')) {
+      state.tasks = L.nestTask(state.tasks, task.id, null);
       persistTasks();
       renderTasks();
     } else if (e.target.closest('.sched.draft')) {
@@ -1157,6 +1262,19 @@ function wireTasks() {
   });
 
   lanesEl.addEventListener('keydown', (e) => {
+    if (e.target.matches('.t-sub-new')) {
+      if (e.key === 'Escape') e.target.blur();
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const parent = state.tasks.find((t) => t.id === state.addingSubTo);
+      const title = e.target.value.trim();
+      if (!parent || !title) { e.target.blur(); return; }
+      addingSub = true; // the re-render below swaps the input; keep it open
+      addTask(title, parent);
+      openSubInput(parent.id);
+      addingSub = false;
+      return;
+    }
     if (!e.target.matches('.t-title, .t-waiting-on')) return;
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -1169,6 +1287,7 @@ function wireTasks() {
 
   lanesEl.addEventListener('focusout', (e) => {
     const t = e.target;
+    if (t.classList.contains('t-sub-new') && !addingSub) state.addingSubTo = null;
     if (t.classList.contains('t-title') && !t.dataset.cancel) {
       const task = taskOf(t);
       if (task) renameTask(task, t.value.trim());
