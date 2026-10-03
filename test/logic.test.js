@@ -4,7 +4,8 @@ import {
   parseTime, resolveDate, validateRow, findConflicts,
   normalizeEvent, buildEventPayload, assignLanes, rowsRange, addMinutes,
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
-  stampTaskChanges, mergeTaskDocs,
+  stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
+  tasksById, alignSubtasks,
 } from '../js/logic.js';
 
 const TODAY = '2026-09-27'; // a Sunday
@@ -215,17 +216,87 @@ test('moveTask reorders within and across lanes and stamps times', () => {
     { id: 'c', status: 'doing' }, { id: 'd', status: 'backlog' },
   ];
   const ids = (ts) => ts.map((t) => t.id).join('');
-  assert.equal(ids(moveTask(tasks, 'd', 'backlog', 0, 1)), 'dabc');
-  assert.equal(ids(moveTask(tasks, 'a', 'backlog', 9, 1)), 'bcda');
-  const w = moveTask(tasks, 'b', 'waiting', 0, 42);
+  assert.equal(ids(moveTask(tasks, 'd', 'backlog', 'a', 1)), 'dabc');
+  assert.equal(ids(moveTask(tasks, 'a', 'backlog', null, 1)), 'bcda');
+  const w = moveTask(tasks, 'b', 'waiting', null, 42);
   assert.equal(ids(w), 'acdb');
   assert.equal(w.find((t) => t.id === 'b').waitingSince, 42);
-  const d = moveTask(w, 'b', 'doing', 0, 50);
+  const d = moveTask(w, 'b', 'doing', 'c', 50);
   assert.equal(ids(d), 'abcd');
   assert.equal(d.find((t) => t.id === 'b').waitingSince, null);
   // Reordering inside Waiting keeps the original waitingSince.
-  assert.equal(moveTask(w, 'b', 'waiting', 0, 99).find((t) => t.id === 'b').waitingSince, 42);
-  assert.equal(moveTask(tasks, 'a', 'done', 0, 7).find((t) => t.id === 'a').doneAt, 7);
+  assert.equal(moveTask(w, 'b', 'waiting', null, 99).find((t) => t.id === 'b').waitingSince, 42);
+  assert.equal(moveTask(tasks, 'a', 'done', null, 7).find((t) => t.id === 'a').doneAt, 7);
+});
+
+test('moveTask keeps a group in one lane', () => {
+  const tasks = [
+    { id: 'p', status: 'backlog' }, { id: 'x', status: 'backlog', parentId: 'p' },
+    { id: 'y', status: 'backlog', parentId: 'p' }, { id: 'z', status: 'backlog' },
+  ];
+  const by = tasksById(moveTask(tasks, 'p', 'waiting', null, 9));
+  assert.deepEqual(['p', 'x', 'y', 'z'].map((id) => by.get(id).status), ['waiting', 'waiting', 'waiting', 'backlog']);
+  assert.equal(by.get('x').waitingSince, 9);
+  const done = tasksById(moveTask(tasks, 'p', 'done', null, 7));
+  assert.deepEqual([done.get('x').status, done.get('x').doneAt], ['done', 7]);
+  // A subtask moved to another lane leaves the group; reordering in the lane keeps it.
+  const out = tasksById(moveTask(tasks, 'x', 'doing', null, 5)).get('x');
+  assert.deepEqual([out.status, out.parentId], ['doing', null]);
+  assert.equal(moveTask(tasks, 'x', 'backlog', 'p', 5).find((t) => t.id === 'x').parentId, 'p');
+  // Reordering the parent inside its lane leaves subtasks alone.
+  assert.equal(moveTask(tasks, 'p', 'backlog', null, 9).find((t) => t.id === 'x'), tasks[1]);
+});
+
+test('alignSubtasks puts subtasks in the parent lane', () => {
+  const tasks = [
+    { id: 'p', status: 'waiting', waitingSince: 4 }, { id: 'x', status: 'backlog', parentId: 'p' },
+    { id: 'y', status: 'waiting', parentId: 'p' }, { id: 'o', status: 'done', parentId: 'gone' },
+  ];
+  const out = alignSubtasks(tasks);
+  assert.deepEqual([out[1].status, out[1].waitingSince], ['waiting', 4]);
+  assert.equal(out[2], tasks[2]);
+  assert.equal(out[3], tasks[3]);
+  assert.equal(alignSubtasks(out), out);
+});
+
+test('nestTask nests one level deep and detaches', () => {
+  const tasks = [
+    { id: 'p', status: 'doing' }, { id: 'c', status: 'doing', parentId: 'p' },
+    { id: 'a', status: 'backlog' }, { id: 'b', status: 'backlog' },
+  ];
+  const ids = (ts) => ts.map((t) => t.id).join('');
+  const n = nestTask(tasks, 'b', 'p');
+  assert.equal(ids(n), 'pcba');
+  const b = n.find((t) => t.id === 'b');
+  assert.deepEqual([b.parentId, b.status], ['p', 'doing']);
+  assert.equal(nestTask(tasks, 'a', 'c'), tasks, 'no subtask of a subtask');
+  assert.equal(nestTask(tasks, 'p', 'a'), tasks, 'a task with subtasks stays top-level');
+  assert.equal(nestTask(tasks, 'a', 'a'), tasks);
+  const out = nestTask(tasks, 'c', null);
+  assert.equal(out.find((t) => t.id === 'c').parentId, null);
+  assert.equal(nestTask(tasks, 'a', null), tasks);
+  // A nested task joins its parent's lane.
+  const done = [{ id: 'p', status: 'done', doneAt: 3 }, { id: 'a', status: 'backlog' }];
+  const joined = nestTask(done, 'a', 'p')[1];
+  assert.deepEqual([joined.status, joined.doneAt], ['done', 3]);
+});
+
+test('removeTask removes subtasks too', () => {
+  const tasks = [{ id: 'p' }, { id: 'c', parentId: 'p' }, { id: 'a' }];
+  assert.deepEqual(removeTask(tasks, 'p').map((t) => t.id), ['a']);
+  assert.deepEqual(removeTask(tasks, 'c').map((t) => t.id), ['p', 'a']);
+});
+
+test('effectiveParentId ignores missing parents and cycles', () => {
+  const tasks = [
+    { id: 'p', title: 'Plan' }, { id: 'c', title: 'Call', parentId: 'p' }, { id: 'o', parentId: 'gone' },
+    { id: 'x', parentId: 'y' }, { id: 'y', parentId: 'x' },
+  ];
+  const by = tasksById(tasks);
+  assert.deepEqual(tasks.map((t) => effectiveParentId(t, by)), [null, 'p', null, null, null]);
+  assert.deepEqual(subtasksOf(tasks, 'p').map((t) => t.id), ['c']);
+  assert.equal(taskBlockTitle(by.get('c'), by), 'Plan: Call');
+  assert.equal(taskBlockTitle(by.get('p'), by), 'Plan');
 });
 
 test('stampTaskChanges marks edited tasks, removals and reorders', () => {
@@ -263,4 +334,9 @@ test('mergeTaskDocs keeps the newest edit, honours deletions and unions both boa
   // Old tombstones are forgotten; tasks without updatedAt fall back to createdAt.
   assert.deepEqual(mergeTaskDocs({ tasks: [], deleted: { z: 1 } }, null, now + 100 * 86_400_000).deleted, {});
   assert.equal(mergeTaskDocs({ tasks: [{ id: 'y', createdAt: 5 }] }, { tasks: [], deleted: { y: 4 } }, now).tasks.length, 1);
+});
+
+test('mergeTaskDocs carries parentId', () => {
+  const t = { id: 'c', title: 'c', status: 'backlog', parentId: 'p', updatedAt: 5 };
+  assert.equal(mergeTaskDocs({ tasks: [] }, { tasks: [t] }, 10).tasks[0].parentId, 'p');
 });

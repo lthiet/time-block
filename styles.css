@@ -600,6 +600,22 @@ input[type=checkbox] { accent-color: var(--accent); }
   cursor: pointer;
 }
 .sched.draft { outline: 1px dashed var(--task); outline-offset: -1px; }
+.task-item { display: grid; gap: 2px; }
+.task-item.dragging { opacity: .4; }
+.task-card.nest-target { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), var(--glow); }
+.subtasks { list-style: none; margin: 0 0 0 12px; padding: 0 0 0 6px; display: grid; gap: 2px; border-left: 1px solid var(--border); }
+.task-card.sub { font-size: 11px; }
+.sub-new input { width: 100%; padding: 1px 4px; font-size: 11px; }
+.sub-toggle {
+  font: 600 10px var(--font-mono);
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sub-toggle:hover { color: var(--accent); border-color: var(--accent); }
 .drop-line { height: 0; border-top: 2px solid var(--accent); margin: -1px 0; box-shadow: 0 0 8px var(--accent); }
 .task-chip {
   position: fixed;
