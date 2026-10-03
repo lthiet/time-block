@@ -48,6 +48,10 @@ export function isSignedIn() {
   return !!token && expiresAt > Date.now() + 60_000;
 }
 
+function getLoginHint() {
+  try { return localStorage.getItem(HINT_KEY) || ''; } catch { return ''; }
+}
+
 export function setLoginHint(email) {
   try { localStorage.setItem(HINT_KEY, email); } catch { /* ignore */ }
 }
@@ -68,15 +72,16 @@ function request(prompt) {
     tokenClient.error_callback = (err) => {
       reject(new Error(err?.type === 'popup_closed' ? 'Sign-in window was closed.' : (err?.message || 'Sign-in failed.')));
     };
-    let hint = '';
-    try { hint = localStorage.getItem(HINT_KEY) || ''; } catch { /* ignore */ }
-    tokenClient.requestAccessToken({ prompt, login_hint: hint || undefined });
+    tokenClient.requestAccessToken({ prompt, login_hint: getLoginHint() || undefined });
   });
 }
 
-/** Interactive sign-in (call from a click handler). */
+/**
+ * Interactive sign-in (call from a click handler). Goes straight to the remembered
+ * account if there is one; signing out forgets it, so the next sign-in shows the picker.
+ */
 export function signIn() {
-  return request(token ? '' : 'select_account');
+  return request(token || getLoginHint() ? '' : 'select_account');
 }
 
 /**
