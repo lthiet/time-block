@@ -82,18 +82,18 @@ body { font-size: 15px; }
 
 /* Each square is laid down by hand at its own angle. Calendar and Time blocks tilt least,
    so dragging onto the calendar stays within a few pixels. */
-.panel.habits { --paper: #fffef8; rotate: -.5deg; --tape-x: 30%; --tape-rot: -4deg; }
-.panel.distractions { --paper: #fbf6e9; rotate: .4deg; --tape-x: 62%; --tape-rot: 3deg; }
+.panel.habits { --paper: #fffef8; rotate: -.5deg; --tape-x: 48%; --tape-rot: -3.4deg; }
+.panel.distractions { --paper: #fbf6e9; rotate: .4deg; --tape-x: 52%; --tape-rot: 2.3deg; }
 .panel.tasks {
   --paper:
     linear-gradient(rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 16px 16px,
     linear-gradient(90deg, rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 16px 16px,
     #fffef8;                         /* graph paper */
   rotate: -.3deg;
-  --tape-x: 45%; --tape-rot: 2deg;
+  --tape-x: 49%; --tape-rot: 4.1deg;
 }
-.panel.entry { --paper: #fdfaf0; rotate: .15deg; --tape-x: 70%; --tape-rot: -3deg; }
-.panel.agenda { --paper: #fffef8; rotate: -.1deg; --tape-x: 50%; --tape-rot: -1.5deg; }
+.panel.entry { --paper: #fdfaf0; rotate: .15deg; --tape-x: 51.5%; --tape-rot: -1.2deg; }
+.panel.agenda { --paper: #fffef8; rotate: -.1deg; --tape-x: 50.5%; --tape-rot: 1.7deg; }
 
 /* The paper and its shadow are two torn layers behind the panel's content. */
 .panel, .capture-box { isolation: isolate; padding: 18px 16px 16px; }
@@ -150,7 +150,7 @@ body { font-size: 15px; }
 .tl-head { background: #fffef8; }
 
 /* Capture popup: one more torn square. */
-.capture-box { background: transparent; border: 0; box-shadow: none; --tape-x: 22%; --tape-rot: -5deg; }
+.capture-box { background: transparent; border: 0; box-shadow: none; --tape-x: 49%; --tape-rot: -2.6deg; }
 .capture-box::after { z-index: -1; background: #fffef8; }
 .capture-box::before { content: "Note to self:"; display: block; font: 700 24px var(--font-display); color: var(--blue-pen); margin-bottom: 4px; width: fit-content; background: linear-gradient(100deg, transparent 2%, var(--highlighter) 4% 94%, transparent 97%) 0 70% / 100% 44% no-repeat; }
 
