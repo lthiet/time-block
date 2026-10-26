@@ -1,0 +1,86 @@
+/* Sketchbook: ruled notebook paper, pen-drawn wobbly boxes, handwriting, highlighter marks. */
+@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Courier+Prime&display=swap");
+
+:root {
+  --pen: #2b2b2b;
+  --blue-pen: #2f5fb3;
+  --red-pen: #d9472b;
+  --marker: #fff176;
+  --wobble: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --wobble-sm: 12px 3px 14px 4px / 4px 14px 3px 12px;
+
+  --bg: #fbf8ef;
+  --page-bg:
+    linear-gradient(90deg, transparent 54px, #f0a4a4 54px 56px, transparent 56px),
+    repeating-linear-gradient(transparent 0 27px, #bcd0ec 27px 28px),
+    #fbf8ef;
+  --bar: #fbf8ef;
+  --bar-text: var(--pen);
+  --surface: #fffdf7;
+  --surface-solid: #fffdf7;
+  --surface-2: #f7f3e8;
+  --field: #fffdf7;
+  --ink: var(--pen);
+  --border: var(--pen);
+  --border-strong: var(--pen);
+  --line: rgb(47 95 179 / .14);
+  --text: var(--pen);
+  --muted: #6e6a60;
+  --accent: var(--marker);
+  --accent-ink: var(--pen);
+  --accent-2: var(--red-pen);
+  --accent-2-ink: #ffffff;
+  --accent-soft: rgb(255 241 118 / .45);
+  --info: var(--blue-pen);
+  --info-ink: #ffffff;
+  --label: var(--blue-pen);
+  --done: var(--pen);
+  --sheet: #fffdf7;
+  --today-col: rgb(255 241 118 / .28);
+  --now: var(--red-pen);
+  --overlay: rgb(251 248 239 / .75);
+
+  --radius: var(--wobble);
+  --radius-sm: var(--wobble-sm);
+  --bw: 2px;
+  --bw-sm: 1.5px;
+  --panel-shadow: 3px 4px 0 rgb(43 43 43 / .85);
+  --ctl-shadow: 2px 2px 0 var(--pen);
+  --ctl-shadow-hover: 3px 3px 0 var(--pen);
+  --ctl-lift: rotate(-1deg);
+  --ctl-press: translate(2px, 2px);
+  --card-hover: 2px 2px 0 var(--pen);
+  --focus-ring: 0 0 0 3px rgb(255 241 118 / .9);
+  --gap: 20px;
+
+  --font: "Patrick Hand", "Comic Sans MS", cursive;
+  --font-display: "Caveat", "Patrick Hand", cursive;
+  --font-mono: "Courier Prime", "Courier New", monospace;
+  --font-term: var(--font);
+  --term-size: 15px;
+  --title-font: 700 30px/.9 var(--font-display);
+  --brand-font: 700 30px/1 var(--font-display);
+  --agenda-title-font: 700 28px/1 var(--font-display);
+  --btn-font: 400 15px var(--font);
+  --label-font: 400 13px var(--font);
+}
+
+body { font-size: 15px; }
+.topbar { border-bottom: 2px solid var(--pen); }
+/* Highlighter swipe behind headings. */
+.panel-title, .brand span { background: linear-gradient(100deg, transparent 2%, var(--marker) 4% 94%, transparent 97%) 0 62% / 100% 46% no-repeat; }
+.panel-title { width: fit-content; padding-inline: 4px; }
+.agenda-head h2 { color: var(--pen); }
+.btn.primary { background: var(--red-pen); color: #fff; }
+.lane, .dist-day { background: transparent; border-style: dashed; }
+.lane-head, .dist-day-head { background: transparent; border-bottom-style: dashed; font: 400 14px var(--font); letter-spacing: .02em; }
+.task-card, .habit, .dist { background: var(--surface-solid); }
+.h-check.on, .day-toggle.on { background: var(--marker); }
+.tl-dayhead.today .dom { background: var(--marker); }
+.tl-head { border-bottom-style: dashed; }
+.settings { border-block-style: dashed; }
+.actionbar, .legend, .shortcut-setting { border-top-style: dashed; }
+.habit-map { border-bottom-style: dashed; }
+.task-card, .habit, .dist, .task-card .t-title, .h-title-input { font-size: 14px; }
+.timeline .now { height: 2px; background: repeating-linear-gradient(90deg, var(--red-pen) 0 6px, transparent 6px 10px); }
+.capture-box::before { content: "Note to self:"; display: block; font: 700 24px var(--font-display); color: var(--blue-pen); margin-bottom: 4px; }

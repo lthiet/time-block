@@ -1,0 +1,92 @@
+/* Swiss: editorial minimalism. Off-white page, black type, one red, big flush-left headings, hairline rules instead of boxes. */
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --red: #e30613;
+
+  --bg: #f4f2ee;
+  --page-bg: #f4f2ee;
+  --bar: #f4f2ee;
+  --bar-text: #111111;
+  --surface: transparent;
+  --surface-solid: #f4f2ee;
+  --surface-2: #ebe8e2;
+  --field: transparent;
+  --ink: #111111;
+  --border: #111111;
+  --border-strong: #111111;
+  --line: rgb(17 17 17 / .1);
+  --text: #111111;
+  --muted: #6d6a64;
+  --accent: #111111;
+  --accent-ink: #f4f2ee;
+  --accent-2: var(--red);
+  --accent-2-ink: #ffffff;
+  --accent-soft: #ebe8e2;
+  --info: var(--red);
+  --info-ink: #ffffff;
+  --label: #111111;
+  --done: #111111;
+  --sheet: transparent;
+  --today-col: rgb(227 6 19 / .05);
+  --now: var(--red);
+  --overlay: rgb(244 242 238 / .85);
+
+  --radius: 0;
+  --radius-sm: 0;
+  --bw: 0px;
+  --bw-sm: 1px;
+  --panel-shadow: none;
+  --ctl-press: none;
+  --card-hover: none;
+  --focus-ring: none;
+  --gap: 32px;
+
+  --font: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: var(--font);
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-term: var(--font-mono);
+  --term-size: 11px;
+  --title-font: 800 30px/.95 var(--font-display);
+  --title-tracking: -.03em;
+  --brand-font: 900 20px/1 var(--font-display);
+  --agenda-title-font: 800 30px/.95 var(--font-display);
+  --btn-font: 600 12px var(--font);
+  --label-font: 500 10px var(--font-mono);
+}
+
+.layout { padding: 24px 32px 32px; }
+.topbar { padding: 14px 32px; border-bottom: 3px solid #111; }
+.brand span { letter-spacing: -.03em; }
+.brand span::after { content: "."; color: var(--red); }
+/* Panels are columns on the page, each opened by a heavy rule. */
+.panel { border-top: 3px solid #111; padding: 14px 0 0; }
+.panel-title { margin-bottom: 18px; }
+.panel-title .badge { background: transparent; color: var(--red); font: 800 30px/.95 var(--font-display); padding: 0; }
+.agenda-head h2 { text-align: left; }
+.settings { margin-inline: 0; border-block-color: var(--line); }
+.settings summary { padding-inline: 0; }
+input[type=text], input[type=date], input[type=time], select, textarea { border: 0; border-bottom: 1px solid #111; padding-inline: 0; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-bottom: 2px solid var(--red); }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.btn, .chip-btn { background: transparent; border-color: #111; }
+.btn:hover:not(:disabled), .chip-btn:hover { background: #111; color: #f4f2ee; border-color: #111; }
+.btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+.view-toggle { border-color: #111; }
+.lane, .dist-day { border: 0; border-top: 1px solid #111; background: transparent; }
+.lane-head, .dist-day-head { background: transparent; border-bottom-color: var(--line); padding-inline: 0; }
+.lane-list, .dist-items { padding-inline: 0; }
+.lane-head .count, .dist-day-head .count, .dist-done-toggle .count { background: transparent; color: var(--red); padding: 0; }
+.task-card, .habit, .dist { border: 0; border-bottom: 1px solid var(--line); background: transparent; }
+.task-card:hover, .habit:hover { background: var(--surface-2); }
+.habit.focused { border-color: var(--line); box-shadow: inset 3px 0 0 var(--red); }
+.h-check { border-color: #111; }
+.h-check.on { background: #111; color: #f4f2ee; }
+.h-stat.streak { background: transparent; color: var(--red); padding: 0; }
+.tl-head { border-bottom: 1px solid #111; }
+.tl-dayhead.today .dom { background: var(--red); color: #fff; }
+.tl-dayhead.today { box-shadow: none; }
+.tl-dayhead.today .dow { color: var(--red); }
+.timeline .now::before { border-radius: 0; }
+.actionbar, .legend, .habit-map, .shortcut-setting { border-color: var(--line); }
+.capture-box { border-top: 3px solid #111; box-shadow: none; background: #f4f2ee; }

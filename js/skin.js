@@ -3,6 +3,16 @@
 
 export const SKINS = [
   { id: 'construction', name: 'Construction' },
+  { id: 'retro-os', name: 'Retro desktop' },
+  { id: 'glass', name: 'Glass' },
+  { id: 'raw', name: 'Raw brutalism' },
+  { id: 'swiss', name: 'Swiss' },
+  { id: 'hardware', name: 'Hardware' },
+  { id: 'terminal', name: 'Terminal' },
+  { id: 'neumorphism', name: 'Soft UI' },
+  { id: 'sketch', name: 'Sketchbook' },
+  { id: 'aero', name: 'Aero' },
+  { id: 'midnight', name: 'Midnight' },
 ];
 export const DEFAULT_SKIN = 'construction';
 export const SKIN_KEY = 'tb.skin';
@@ -24,7 +34,7 @@ export function currentSkin() {
 function syncThemeColor() {
   const meta = document.querySelector('meta[name="theme-color"]');
   const bar = getComputedStyle(document.documentElement).getPropertyValue('--bar').trim();
-  if (meta && bar) meta.content = bar;
+  if (meta && bar && !bar.includes('gradient')) meta.content = bar;
 }
 
 export function applySkin(id) {

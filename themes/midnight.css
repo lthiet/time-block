@@ -1,0 +1,69 @@
+/* Midnight: a calm dark productivity UI. Deep slate, quiet 1px borders, one violet accent, tight type. */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap");
+
+:root {
+  --violet: #8b6cff;
+
+  --bg: #0d0f14;
+  --page-bg:
+    radial-gradient(1100px 520px at 50% -12%, rgb(139 108 255 / .14), transparent 70%),
+    #0d0f14;
+  --bar: #0f1218;
+  --bar-text: #e6e8ee;
+  --surface: #13161d;
+  --surface-solid: #151922;
+  --surface-2: #1a1f2a;
+  --field: #0f1218;
+  --ink: #e6e8ee;
+  --border: #262c39;
+  --border-strong: #232937;
+  --line: rgb(255 255 255 / .05);
+  --text: #e6e8ee;
+  --muted: #8a91a2;
+  --accent: var(--violet);
+  --accent-ink: #ffffff;
+  --accent-2: var(--violet);
+  --accent-2-ink: #ffffff;
+  --accent-soft: rgb(139 108 255 / .14);
+  --info: var(--violet);
+  --info-ink: #ffffff;
+  --label: #a6acbb;
+  --done: var(--violet);
+  --sheet: #13161d;
+  --today-col: rgb(139 108 255 / .06);
+  --now: #ff5c7a;
+  --overlay: rgb(5 6 10 / .6);
+  --ok: #3fb950;
+  --warn: #d29922;
+  --bad: #f85149;
+
+  --radius: 12px;
+  --radius-sm: 7px;
+  --panel-shadow: 0 1px 0 rgb(255 255 255 / .03) inset, 0 16px 32px -20px rgb(0 0 0 / .8);
+  --card-hover: 0 0 0 1px #3a4152;
+  --focus-ring: 0 0 0 3px rgb(139 108 255 / .3);
+  --gap: 12px;
+
+  --font: "Geist", system-ui, sans-serif;
+  --font-display: var(--font);
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-term: var(--font-mono);
+  --term-size: 11px;
+  --title-font: 600 13px/1.2 var(--font-display);
+  --title-tracking: -.01em;
+  --brand-font: 600 14px/1 var(--font-display);
+  --agenda-title-font: 600 14px/1.2 var(--font-display);
+  --btn-font: 500 12px var(--font);
+  --label-font: 500 10px var(--font-mono);
+  color-scheme: dark;
+}
+
+.btn.primary:hover:not(:disabled) { background: #9a80ff; }
+.btn:hover:not(:disabled), .chip-btn:hover { border-color: #3a4152; background: #222836; }
+.chip-btn.active { background: var(--accent-soft); color: #c9bcff; border-color: rgb(139 108 255 / .5); }
+.view-toggle button.active { background: #262c39; color: var(--text); }
+.lane-head .count, .dist-day-head .count, .dist-done-toggle .count, .panel-title .badge, .h-stat.streak { background: #262c39; color: #c9bcff; }
+.lane-head, .dist-day-head { background: transparent; color: var(--muted); }
+.lane, .dist-day { background: #11141b; }
+.tl-dayhead.today .dom { background: var(--violet); }
+.age.old { color: #0d0f14; }

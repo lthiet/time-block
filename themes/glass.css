@@ -1,0 +1,72 @@
+/* Glass: frosted translucent panels floating over vivid blurred colour blobs. */
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --frost: rgb(255 255 255 / .32);
+  --frost-strong: rgb(255 255 255 / .55);
+  --edge: rgb(255 255 255 / .6);
+
+  --bg: #6b5bd6;
+  --page-bg:
+    radial-gradient(38vmax 38vmax at 12% 18%, #ff7eb6 0, transparent 60%),
+    radial-gradient(34vmax 34vmax at 88% 12%, #6ee7ff 0, transparent 60%),
+    radial-gradient(40vmax 40vmax at 78% 88%, #ffd36e 0, transparent 60%),
+    radial-gradient(36vmax 36vmax at 18% 92%, #8b7bff 0, transparent 60%),
+    linear-gradient(135deg, #6b5bd6, #2bb3d9);
+  --bar: rgb(255 255 255 / .28);
+  --bar-text: #1d1a3a;
+  --surface: var(--frost);
+  --surface-solid: #f7f6ff;
+  --surface-2: rgb(255 255 255 / .38);
+  --field: rgb(255 255 255 / .6);
+  --ink: #1d1a3a;
+  --border: var(--edge);
+  --border-strong: var(--edge);
+  --line: rgb(29 26 58 / .09);
+  --text: #1d1a3a;
+  --muted: #4d4a70;
+  --accent: #5b3df5;
+  --accent-ink: #ffffff;
+  --accent-2: #5b3df5;
+  --accent-2-ink: #ffffff;
+  --accent-soft: rgb(91 61 245 / .14);
+  --info: #5b3df5;
+  --label: #4632c9;
+  --done: #5b3df5;
+  --sheet: rgb(255 255 255 / .4);
+  --today-col: rgb(91 61 245 / .08);
+  --now: #ff3d8b;
+  --overlay: rgb(40 30 90 / .25);
+
+  --radius: 20px;
+  --radius-sm: 10px;
+  --bw: 1px;
+  --bw-sm: 1px;
+  --panel-shadow: 0 10px 40px -12px rgb(31 24 110 / .45), inset 0 1px 0 rgb(255 255 255 / .7);
+  --panel-blur: blur(22px) saturate(170%);
+  --ctl-shadow: 0 2px 8px -2px rgb(31 24 110 / .25);
+  --ctl-shadow-hover: 0 6px 16px -4px rgb(31 24 110 / .35);
+  --ctl-lift: translateY(-1px);
+  --card-hover: 0 6px 18px -8px rgb(31 24 110 / .45);
+  --focus-ring: 0 0 0 3px rgb(91 61 245 / .3);
+  --gap: 16px;
+
+  --font: "Manrope", system-ui, sans-serif;
+  --font-display: "Outfit", "Manrope", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-term: var(--font-mono);
+  --term-size: 12px;
+  --title-font: 600 17px/1.1 var(--font-display);
+  --brand-font: 700 18px/1 var(--font-display);
+  --agenda-title-font: 600 18px/1.1 var(--font-display);
+  --btn-font: 600 12px var(--font);
+}
+
+.topbar { border-bottom: 1px solid var(--edge); box-shadow: 0 8px 30px -16px rgb(31 24 110 / .5); }
+.btn, .chip-btn, .view-toggle { background: rgb(255 255 255 / .45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.btn.primary { background: linear-gradient(135deg, #6a4bff, #b14bff); border-color: rgb(255 255 255 / .5); }
+.task-card, .habit, .dist, .lane-head, .dist-day-head { background: rgb(255 255 255 / .5); }
+.lane, .dist-day { background: rgb(255 255 255 / .22); }
+.tl-head { background: rgb(247 246 255 / .82); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom-color: var(--edge); }
+.capture-box { background: rgb(255 255 255 / .6); -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%); }
+.timeline .now { box-shadow: 0 0 10px #ff3d8b; }
