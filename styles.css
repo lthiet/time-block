@@ -737,7 +737,7 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 .dist-list { display: grid; grid-auto-rows: max-content; align-content: start; gap: 8px; }
 .dist-day { border: var(--bw-sm) solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden; }
 .dist-day-head { display: flex; gap: 6px; align-items: center; padding: 3px 8px; border-bottom: var(--bw-sm) solid var(--border); background: var(--surface-solid); font: 700 10px var(--font-mono); text-transform: uppercase; letter-spacing: .14em; color: var(--text); }
-.dist-day-head .count, .dist-done-toggle .count { font: calc(var(--term-size) - 1px) var(--font-term); letter-spacing: 0; padding: 0 6px; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-ink); }
+.dist-day-head .count, .dist-done-toggle .count, .dist-history-toggle .count { font: calc(var(--term-size) - 1px) var(--font-term); letter-spacing: 0; padding: 0 6px; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-ink); }
 .dist-items { list-style: none; margin: 0; padding: 5px; display: grid; gap: 3px; }
 .dist {
   display: flex;
@@ -759,7 +759,12 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 .d-note, .d-note-input { flex: 1 0 100%; margin-left: 22px; max-width: calc(100% - 22px); font-size: 11px; }
 .d-note { color: var(--muted); cursor: text; white-space: pre-wrap; overflow-wrap: anywhere; }
 .d-note-input { padding: 1px 4px; }
-.dist-done-toggle { border: var(--bw-sm) solid var(--border); }
+.dist-done-toggle, .dist-history-toggle { border: var(--bw-sm) solid var(--border); }
+.dist-history { display: grid; gap: 4px; padding: 6px 8px; border: var(--bw-sm) solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.hm-cell.dist-cell { background: color-mix(in srgb, var(--bad) calc(20% + var(--k, 0) * 80%), var(--surface-solid)); outline-color: transparent; }
+.hm-cell.dist-cell.zero { background: var(--surface-2); outline-color: var(--line); }
+.hm-cell.dist-cell.today { outline: 2px solid var(--accent); outline-offset: -2px; }
+.hm-cell.picked { outline: 2px solid var(--accent-2); outline-offset: -2px; }
 .shortcut-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: var(--bw-sm) solid var(--border); color: var(--muted); }
 .shortcut-setting .chip-btn.recording { background: var(--accent); color: var(--accent-ink); animation: blink-rec 1s steps(1) infinite; }
 @keyframes blink-rec { 50% { background: var(--accent-2); } }
