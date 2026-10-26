@@ -1,4 +1,4 @@
-/* Construction zone, light: white panels on a deep blueprint-blue sheet, thick black borders, safety yellow and hazard orange. */
+/* Construction zone, light: white panels on a deep blueprint-blue sheet, thick black borders, safety yellow with hazard orange as its accent. */
 :root {
   --bg: #1b4a9c;                     /* deep blueprint blue */
   --bar: #ffd200;                    /* top bar: safety yellow */
@@ -17,14 +17,12 @@
   --orange: #ff6b00;
   --blue: #1747a6;                   /* blueprint blue */
   --accent: var(--yellow);           /* fills, active states */
-  --accent-2: var(--orange);         /* secondary fills, focus */
-  --accent-3: var(--yellow);         /* heading text shadows */
+  --accent-2: var(--orange);         /* small accents beside the yellow: focus, Save, headings */
   --accent-ink: var(--ink);          /* text on yellow and orange fills */
   --label: var(--blue);              /* labels and figures */
   --accent-soft: color-mix(in srgb, var(--yellow) 22%, var(--surface-solid));
   --bw: 3px;
   --bw-sm: 2px;
-  --ps: var(--ink); /* panel shadow colour */
   --shadow-sm: 3px 3px 0 var(--ink);
   --hazard: repeating-linear-gradient(-45deg, var(--accent) 0 8px, var(--accent-ink) 8px 16px);
   --font: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -206,15 +204,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   position: relative;
   background: var(--surface);
   border: var(--bw) solid var(--ink);
-  box-shadow: 6px 6px 0 var(--ps); /* set here, not via --shadow, so each panel's --ps applies */
+  box-shadow: 6px 6px 0 var(--yellow);
   padding: 12px 10px 10px;
   min-width: 0;
 }
-.panel.habits { --ps: var(--yellow); }
-.panel.distractions { --ps: var(--orange); }
-.panel.tasks { --ps: var(--orange); }
-.panel.entry { --ps: var(--yellow); }
-.panel.agenda { --ps: var(--yellow); }
 /* Hazard tape across the top-left corner. */
 .panel::before {
   content: "";
@@ -356,7 +349,7 @@ input[type=checkbox] { accent-color: var(--orange); }
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--ink);
-  text-shadow: 2px 2px 0 var(--accent-3);
+  text-shadow: 2px 2px 0 var(--orange);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -641,7 +634,7 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
   text-transform: uppercase;
   letter-spacing: .06em;
   color: var(--ink);
-  text-shadow: 2px 2px 0 var(--ps);
+  text-shadow: 2px 2px 0 var(--orange);
 }
 .panel-title .badge:empty { display: none; }
 .panel-title .badge { font: 16px/1.1 var(--font-term); padding: 0 6px; background: var(--accent); color: var(--accent-ink); text-shadow: none; border: var(--bw-sm) solid var(--ink); }
