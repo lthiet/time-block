@@ -1,6 +1,6 @@
-/* Construction zone, light: blueprint grid paper, white panels, thick black borders, safety yellow, hazard orange and blueprint blue. */
+/* Construction zone, light: white panels on a deep blueprint-blue sheet, thick black borders, safety yellow and hazard orange. */
 :root {
-  --bg: #e3ebf6;                     /* blueprint paper */
+  --bg: #1b4a9c;                     /* deep blueprint blue */
   --bar: #ffd200;                    /* top bar: safety yellow */
   --surface: #ffffff;                /* panels */
   --surface-solid: #ffffff;          /* opaque: cards, sticky headers, colour mixes */
@@ -8,19 +8,19 @@
   --field: #ffffff;                  /* inputs */
   --ink: #141414;                    /* borders and hard shadows */
   --border: var(--ink);
-  --line: rgb(31 91 204 / .13);      /* hairlines: blueprint grid */
-  --grid-major: rgb(31 91 204 / .16);
-  --grid-minor: rgb(31 91 204 / .07);
+  --line: rgb(23 71 166 / .14);      /* hairlines inside panels */
+  --grid-major: rgb(255 255 255 / .2); /* white grid on the blue sheet */
+  --grid-minor: rgb(255 255 255 / .08);
   --text: #141414;
   --muted: #6b675f;
   --yellow: #ffd200;
   --orange: #ff6b00;
-  --blue: #1f5bcc;                   /* blueprint blue */
+  --blue: #1747a6;                   /* blueprint blue */
   --accent: var(--yellow);           /* fills, active states */
   --accent-2: var(--orange);         /* secondary fills, focus */
   --accent-3: var(--yellow);         /* heading text shadows */
   --accent-ink: var(--ink);          /* text on yellow and orange fills */
-  --label: #1a4aa8;                  /* blueprint blue for labels and figures */
+  --label: var(--blue);              /* labels and figures */
   --accent-soft: color-mix(in srgb, var(--yellow) 22%, var(--surface-solid));
   --bw: 3px;
   --bw-sm: 2px;
@@ -212,9 +212,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 .panel.habits { --ps: var(--yellow); }
 .panel.distractions { --ps: var(--orange); }
-.panel.tasks { --ps: var(--blue); }
-.panel.entry { --ps: var(--orange); }
-.panel.agenda { --ps: var(--blue); }
+.panel.tasks { --ps: var(--orange); }
+.panel.entry { --ps: var(--yellow); }
+.panel.agenda { --ps: var(--yellow); }
 /* Hazard tape across the top-left corner. */
 .panel::before {
   content: "";
@@ -230,7 +230,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 
 /* ---------- Settings ---------- */
-.settings { border-bottom: var(--bw-sm) solid var(--ink); margin: -12px -10px 10px; }
+.settings { border-block: var(--bw-sm) solid var(--ink); margin: 0 -10px 10px; }
 .settings summary {
   display: flex;
   gap: 10px;
@@ -407,7 +407,7 @@ input[type=checkbox] { accent-color: var(--orange); }
   position: relative;
   margin-left: 40px;
   background:
-    linear-gradient(var(--grid-minor) 1px, transparent 1px) 0 0 / 100% calc(var(--hour) / 4),
+    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% calc(var(--hour) / 4),
     color-mix(in srgb, var(--blue) 6%, var(--surface-solid));
 }
 .tl-cols { position: absolute; inset: 0; display: grid; }
@@ -764,7 +764,7 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
   background:
     linear-gradient(var(--grid-minor) 1px, transparent 1px) 0 0 / 12px 12px,
     linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px) 0 0 / 12px 12px,
-    rgb(227 235 246 / .72);
+    rgb(27 74 156 / .55);
 }
 .capture-box {
   position: relative;

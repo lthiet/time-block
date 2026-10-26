@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Big+Shoulders+Stencil:wght@700;800&family=Space+Grotesk:wght@400;500;600;700&family=VT323&display=swap">
-  <link rel="stylesheet" href="styles.css?v=29">
+  <link rel="stylesheet" href="styles.css?v=30">
   <script src="https://accounts.google.com/gsi/client" async></script>
   <script type="module" src="js/app.js?v=23"></script>
 </head>
@@ -83,6 +83,7 @@
 
     <div class="stack">
       <section class="panel tasks" aria-label="Tasks">
+        <h2 class="panel-title">Tasks</h2>
         <div class="tasks-head">
           <input type="text" id="newTask" placeholder="+ Add a task (Enter)" aria-label="New task" autocomplete="off">
           <div id="taskSync" class="task-sync" role="status"></div>
@@ -91,6 +92,7 @@
       </section>
 
       <section class="panel entry" aria-label="Time blocks">
+        <h2 class="panel-title">Time blocks</h2>
         <details class="settings" id="settings">
           <summary>
             <span>Save to <strong id="targetSummary">—</strong></span>
