@@ -1,20 +1,22 @@
-# Time Block
+# Life Tracker
 
-A small static web app for adding time blocks to Google Calendar in batches. You enter several blocks, the app checks them against your calendars and flags conflicts, and it saves the blocks straight into your **Time Blocking** calendar. There is no backend and no Apps Script: the app runs entirely in your browser and is hosted on GitHub Pages.
+A small static web app for planning your days: time blocks in Google Calendar, a task board, daily habits and a distraction log. You can add time blocks to Google Calendar in batches. You enter several blocks, the app checks them against your calendars and flags conflicts, and it saves the blocks straight into your **Time Blocking** calendar. There is no backend and no Apps Script: the app runs entirely in your browser and is hosted on GitHub Pages.
 
 - **Batch entry.** Type blocks into a grid. Pressing <kbd>Enter</kbd> adds a new row that starts when the previous block ends.
 - **Conflict check.** New blocks are checked against your primary calendar, Time Blocking, and any other calendars you tick. Blocks also overlap-check each other. Events marked Free, events you declined, and all-day events are ignored (you can switch on all-day events).
 - **Recurring blocks.** Set Repeat to Daily, Weekdays or Weekly (pick the days), with an optional end date. A recurring block is saved as one real repeating event, so in Google Calendar you can edit or delete "this / following / all events". Every occurrence is conflict-checked: through the end date if there is one, otherwise over the next 4 weeks.
 - **Saves to Time Blocking.** Saved blocks are real Google Calendar events, so they sync to every device. You never pick the calendar by hand, and there's an **Undo** after each save.
-- **Week and day view.** The calendar opens in the week view (Monday–Sunday) and takes the right two thirds of the screen on desktop, next to the block list. Switch to Day above the calendar; `#view=day` in the URL opens the day view directly. In the week view you can also drag a new one-off block to another day.
+- **Week and day view.** The calendar opens in the week view (Monday–Sunday) and takes the right half of the screen on desktop, next to the habits and distractions. Switch to Day above the calendar; `#view=day` in the URL opens the day view directly. In the week view you can also drag a new one-off block to another day.
 - **Day agenda.** The panel shows your existing events and the new blocks side by side, including Time Blocking events you've hidden in Google Calendar. Like Google Calendar, drag on an empty slot to draw a block, drag a new block to move it, or drag its bottom edge to change its length (15-minute steps). Click an empty slot for a 1-hour block.
-- **Task board.** The left panel has four lanes: Backlog, Waiting, Doing and Done. Done is collapsed until you click it. Drag cards between lanes. Waiting cards show who you're waiting on and how long you've been waiting, which turns amber after a week. Drag a task onto the calendar to schedule it as a 1-hour block that saves to your **Tasks** calendar. Tasks sync between your devices through a hidden app folder in your Google Drive (see below).
+- **Task board.** The task panel has four lanes: Backlog, Waiting, Doing and Done. Done is collapsed until you click it. Drag cards between lanes. Waiting cards show who you're waiting on and how long you've been waiting, which turns amber after a week. Drag a task onto the calendar to schedule it as a 1-hour block that saves to your **Tasks** calendar. Tasks sync between your devices through a hidden app folder in your Google Drive (see below).
 - **Subtasks.** Click **+** on a task to add subtasks, or drop a task onto another one. The parent shows how many it has (`▸ 3`); click that to show them. A task and its subtasks always share a lane: drag the parent and the whole group moves (to Done, Waiting, …), while dragging a subtask into another lane takes it out of the group. **⇱** also makes a subtask a normal task again. A subtask dropped on the calendar is saved as "Parent: Subtask".
+- **Habits.** The left column holds **Habits** above **Distractions**; tasks sit above the block list in the middle. Add a habit and check in every day with **✓**. A day without a check-in counts as broken. Each habit shows its current streak, best streak and number of broken days. One shared GitHub-style heatmap covers the last 26 weeks of all habits: dark means you kept them all, red means something broke (darker red = more habits broken), and hovering a day shows which ones. Today doesn't count as broken until it's over. Click a habit to show only its days on the heatmap; there you can still check in for yesterday if you forgot, but older days are locked. Double-click a habit's name to rename it.
+- **Distraction log.** When you get the urge to look something up mid-work, press <kbd>Ctrl+Shift+G</kbd> (<kbd>⌘⇧G</kbd> on a Mac) or just <kbd>G</kbd> when you're not typing. Type it and press <kbd>Enter</kbd>, and you're back where you were. The Distractions panel lists what you logged by day, so you can look things up later if you still want to know. Tick an entry when you're done with it and add a note (e.g. the answer). You can change the shortcut at the bottom of the panel. It's saved per device, and it only works while the Life Tracker tab is focused.
 - **Bookmarkable.** Use `…/#date=tomorrow` (or `today`, `mon`, `+2`, `2026-10-01`) to open straight into planning a given day. Unsaved rows are kept as a draft in your browser.
 
 ## Task sync
 
-The task board is saved in your browser and in a `tasks.json` file in your Google Drive's hidden app data folder. Only this app can see that folder; it doesn't appear in your Drive and the app can't see your other files. The app syncs after every change, when you sign in, and when you come back to the tab, so each device picks up what you did on the others. If two devices change the same task, the most recent change wins. A task deleted on one device is deleted everywhere.
+The task board is saved in your browser and in a `tasks.json` file in your Google Drive's hidden app data folder. Habits and distractions sync the same way, in `habits.json` and `distractions.json`. Check-ins merge per day, so checking in on two devices never loses one. Only this app can see that folder; it doesn't appear in your Drive and the app can't see your other files. The app syncs after every change, when you sign in, and when you come back to the tab, so each device picks up what you did on the others. If two devices change the same task, the most recent change wins. A task deleted on one device is deleted everywhere.
 
 The Drive permission is optional. If you leave it unticked, tasks stay on that device and the board shows an **Allow sync** link. Since sync was added, you'll be asked to sign in once more the first time you open the app.
 
@@ -25,7 +27,7 @@ Google Calendar has no setting to hide a calendar only in the month view. The us
 ## One-time setup (~5 minutes)
 
 ### 1. Google Cloud: OAuth Client ID
-1. Go to <https://console.cloud.google.com/> and create a project (e.g. "Time Block").
+1. Go to <https://console.cloud.google.com/> and create a project (e.g. "Life Tracker").
 2. **APIs & Services → Library** → enable **Google Calendar API** and **Google Drive API**.
 3. **APIs & Services → OAuth consent screen** (Google Auth Platform):
    - User type **External**. Fill in the app name and your email.
@@ -65,6 +67,7 @@ Make sure you have a calendar named **Time Blocking**. You can use a different n
 | <kbd>Backspace</kbd> on an empty title | Remove the row |
 | <kbd>Ctrl/⌘+Enter</kbd> | Check conflicts; if everything is already checked, save |
 | <kbd>Alt+←/→</kbd> | Change the planning date |
+| <kbd>Ctrl+Shift+G</kbd> / <kbd>⌘⇧G</kbd>, or <kbd>G</kbd> | Log a distraction (configurable in the Distractions panel) |
 
 ## Local development
 

@@ -1,7 +1,7 @@
 {
-  "name": "Time Block",
-  "short_name": "Time Block",
-  "description": "Batch-create time blocks in Google Calendar with conflict checks.",
+  "name": "Life Tracker",
+  "short_name": "Life Tracker",
+  "description": "Plan time blocks in Google Calendar, track tasks and habits, and log distractions.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

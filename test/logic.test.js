@@ -5,7 +5,8 @@ import {
   normalizeEvent, buildEventPayload, assignLanes, rowsRange, addMinutes,
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
   stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
-  tasksById, alignSubtasks,
+  tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit,
+  heatmapWeeks, combinedDayState, groupByDay, comboFromEvent, formatCombo, shortcutProblem,
 } from '../js/logic.js';
 
 const TODAY = '2026-09-27'; // a Sunday
@@ -339,4 +340,118 @@ test('mergeTaskDocs keeps the newest edit, honours deletions and unions both boa
 test('mergeTaskDocs carries parentId', () => {
   const t = { id: 'c', title: 'c', status: 'backlog', parentId: 'p', updatedAt: 5 };
   assert.equal(mergeTaskDocs({ tasks: [] }, { tasks: [t] }, 10).tasks[0].parentId, 'p');
+});
+
+const habit = (checked, start = '2026-09-20') => ({
+  id: 'h', title: 'x', start, checks: Object.fromEntries(checked.map((d) => [d, { on: true, at: 1 }])),
+});
+
+test('habitDayState: done, broken, pending today, before start', () => {
+  const hb = habit(['2026-09-25']);
+  assert.equal(habitDayState(hb, '2026-09-19', TODAY), 'before');
+  assert.equal(habitDayState(hb, '2026-09-25', TODAY), 'done');
+  assert.equal(habitDayState(hb, '2026-09-26', TODAY), 'broken');
+  assert.equal(habitDayState(hb, TODAY, TODAY), 'pending');
+  assert.equal(habitDayState(hb, '2026-09-28', TODAY), 'future');
+});
+
+test('canToggleDay allows today and yesterday only', () => {
+  const hb = habit([]);
+  assert.ok(canToggleDay(hb, TODAY, TODAY));
+  assert.ok(canToggleDay(hb, '2026-09-26', TODAY));
+  assert.ok(!canToggleDay(hb, '2026-09-25', TODAY));
+  assert.ok(!canToggleDay(hb, '2026-09-28', TODAY));
+  assert.ok(!canToggleDay(habit([], TODAY), '2026-09-26', TODAY)); // before the habit existed
+});
+
+test('toggleCheck flips a day and stamps it', () => {
+  const on = toggleCheck(habit([]), TODAY, 5);
+  assert.deepEqual(on.checks[TODAY], { on: true, at: 5 });
+  assert.deepEqual(toggleCheck(on, TODAY, 6).checks[TODAY], { on: false, at: 6 });
+});
+
+test('habitStats: streak survives an unchecked today, resets on a miss', () => {
+  // 20..23 done, 24 missed, 25..26 done, today open
+  const hb = habit(['2026-09-20', '2026-09-21', '2026-09-22', '2026-09-23', '2026-09-25', '2026-09-26']);
+  assert.deepEqual(habitStats(hb, TODAY), { current: 2, best: 4, broken: 1, done: 6 });
+  assert.equal(habitStats(toggleCheck(hb, TODAY, 1), TODAY).current, 3);
+  assert.equal(habitStats(habit(['2026-09-25']), TODAY).current, 0); // yesterday missed
+  assert.deepEqual(habitStats(habit([], TODAY), TODAY), { current: 0, best: 0, broken: 0, done: 0 });
+});
+
+test('mergeHabit keeps the newer fields and merges check-ins per day', () => {
+  const a = { id: 'h', title: 'old', updatedAt: 1, checks: { d1: { on: true, at: 10 }, d2: { on: true, at: 10 } } };
+  const b = { id: 'h', title: 'new', updatedAt: 2, checks: { d2: { on: false, at: 20 }, d3: { on: true, at: 5 } } };
+  const m = mergeHabit(a, b);
+  assert.equal(m.title, 'new');
+  assert.deepEqual(m.checks, { d1: { on: true, at: 10 }, d2: { on: false, at: 20 }, d3: { on: true, at: 5 } });
+  assert.deepEqual(mergeHabit(b, a), m);
+});
+
+test('mergeRecordDocs unions, honours deletions and combines shared records', () => {
+  const now = 1_000_000;
+  const a = { items: [{ id: '1', updatedAt: 1 }, { id: '2', updatedAt: 1 }], deleted: {} };
+  const b = { items: [{ id: '2', updatedAt: 2, v: 'b' }, { id: '3', updatedAt: 1 }], deleted: { 1: 5 } };
+  const m = mergeRecordDocs(a, b, now);
+  assert.deepEqual(m.items.map((x) => x.id), ['2', '3']);
+  assert.equal(m.items[0].v, 'b');
+  assert.deepEqual(m.deleted, { 1: 5 });
+  const c = mergeRecordDocs(a, b, now, (x, y) => ({ ...x, both: true }));
+  assert.ok(c.items.find((x) => x.id === '2').both);
+});
+
+test('heatmapWeeks ends with the week holding today, Monday first', () => {
+  const w = heatmapWeeks(TODAY, 3); // TODAY is a Sunday
+  assert.equal(w.length, 3);
+  assert.equal(w[2][0], '2026-09-21');
+  assert.equal(w[2][6], TODAY);
+  assert.equal(w[0][0], '2026-09-07');
+});
+
+test('groupByDay: newest day first, chronological inside a day', () => {
+  const at = (s) => new Date(s).getTime();
+  const g = groupByDay([
+    { id: 'a', at: at('2026-09-26T10:00') }, { id: 'b', at: at('2026-09-27T09:00') }, { id: 'c', at: at('2026-09-26T08:00') },
+  ]);
+  assert.deepEqual(g.map((d) => d.date), ['2026-09-27', '2026-09-26']);
+  assert.deepEqual(g[1].items.map((e) => e.id), ['c', 'a']);
+});
+
+test('comboFromEvent uses the physical key', () => {
+  assert.equal(comboFromEvent({ code: 'KeyD', key: 'D', ctrlKey: true, shiftKey: true }), 'Ctrl+Shift+D');
+  assert.equal(comboFromEvent({ code: 'KeyD', key: '∂', metaKey: true, altKey: true }), 'Alt+Meta+D'); // Option on a Mac
+  assert.equal(comboFromEvent({ code: 'ShiftLeft', key: 'Shift', shiftKey: true }), '');
+  assert.equal(comboFromEvent({ code: 'F2', key: 'F2' }), 'F2');
+  assert.equal(comboFromEvent({ code: 'Space', key: ' ', ctrlKey: true }), 'Ctrl+Space');
+});
+
+test('formatCombo shows Mac symbols', () => {
+  assert.equal(formatCombo('Meta+Shift+D', true), '⌘⇧D');
+  assert.equal(formatCombo('Ctrl+Shift+D', false), 'Ctrl+Shift+D');
+});
+
+test('shortcutProblem rejects bare keys and browser shortcuts', () => {
+  assert.equal(shortcutProblem('Ctrl+Shift+G'), '');
+  assert.equal(shortcutProblem('Meta+Shift+G'), '');
+  assert.equal(shortcutProblem('F2'), '');
+  assert.ok(shortcutProblem('D'));
+  assert.ok(shortcutProblem('Shift+D'));
+  assert.ok(shortcutProblem('Ctrl+T'));
+  assert.ok(shortcutProblem('Meta+Q'));
+  assert.ok(shortcutProblem(''));
+});
+
+test('combinedDayState summarises all habits on a day', () => {
+  const a = habit(['2026-09-25', '2026-09-26']);
+  const b = { ...habit(['2026-09-26'], '2026-09-25'), id: 'b' };
+  assert.equal(combinedDayState([a, b], '2026-09-21', TODAY).state, 'broken'); // only a existed, and missed it
+  assert.equal(combinedDayState([a, b], '2026-09-19', TODAY).state, 'before');
+  const d25 = combinedDayState([a, b], '2026-09-25', TODAY);
+  assert.equal(d25.state, 'broken');
+  assert.deepEqual(d25.broken.map((x) => x.id), ['b']);
+  assert.equal(d25.total, 2);
+  assert.equal(combinedDayState([a, b], '2026-09-26', TODAY).state, 'done');
+  assert.equal(combinedDayState([a, b], TODAY, TODAY).state, 'pending');
+  assert.equal(combinedDayState([toggleCheck(a, TODAY, 1), toggleCheck(b, TODAY, 1)], TODAY, TODAY).state, 'done');
+  assert.equal(combinedDayState([a], '2026-09-28', TODAY).state, 'future');
 });

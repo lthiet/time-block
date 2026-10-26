@@ -1,11 +1,11 @@
-// Stores the task board as a JSON file in the app's hidden Google Drive folder (appDataFolder).
+// Stores the task board (and habits, distractions) as JSON files in the app's hidden Google Drive folder (appDataFolder).
 // Only this app can see that folder; it doesn't show up in the user's Drive.
 import { getToken, invalidateToken } from './auth.js';
 import { AuthError } from './gcal.js';
 
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
-const FILE_NAME = 'tasks.json';
+const FILE_NAME = 'tasks.json'; // default; habits and distractions pass their own name
 
 export class ScopeError extends Error {}
 
@@ -26,19 +26,19 @@ async function call(url, { method = 'GET', headers = {}, body, raw = false } = {
   return raw ? res.text() : res.json();
 }
 
-/** All copies of the task file (normally one; two devices can race to create it), oldest first. */
-async function listFiles() {
+/** All copies of a file (normally one; two devices can race to create it), oldest first. */
+async function listFiles(name) {
   const url = new URL(`${API}/files`);
   url.searchParams.set('spaces', 'appDataFolder');
-  url.searchParams.set('q', `name = '${FILE_NAME}' and trashed = false`);
+  url.searchParams.set('q', `name = '${name}' and trashed = false`);
   url.searchParams.set('fields', 'files(id)');
   url.searchParams.set('orderBy', 'createdTime');
   return (await call(url)).files || [];
 }
 
 /** Returns [{id, doc}] for each stored copy; `doc` is null if the file can't be parsed. */
-export async function readTaskFiles() {
-  const files = await listFiles();
+export async function readTaskFiles(name = FILE_NAME) {
+  const files = await listFiles(name);
   return Promise.all(files.map(async (f) => {
     const text = await call(`${API}/files/${encodeURIComponent(f.id)}?alt=media`, { raw: true });
     let doc = null;
@@ -47,8 +47,8 @@ export async function readTaskFiles() {
   }));
 }
 
-/** Writes the board to file `id`, or creates the file when `id` is null. Returns the file id. */
-export async function writeTaskFile(id, doc) {
+/** Writes the board to file `id`, or creates file `name` when `id` is null. Returns the file id. */
+export async function writeTaskFile(id, doc, name = FILE_NAME) {
   const json = JSON.stringify(doc);
   if (id) {
     await call(`${UPLOAD}/files/${encodeURIComponent(id)}?uploadType=media`, {
@@ -59,7 +59,7 @@ export async function writeTaskFile(id, doc) {
   const boundary = `tb${Math.random().toString(36).slice(2)}`;
   const body = [
     `--${boundary}`, 'Content-Type: application/json; charset=UTF-8', '',
-    JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] }),
+    JSON.stringify({ name, parents: ['appDataFolder'] }),
     `--${boundary}`, 'Content-Type: application/json', '', json, `--${boundary}--`, '',
   ].join('\r\n');
   const created = await call(`${UPLOAD}/files?uploadType=multipart&fields=id`, {
