@@ -10,10 +10,17 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Big+Shoulders+Stencil:wght@700;800&family=Space+Grotesk:wght@400;500;600;700&family=VT323&display=swap">
-  <link rel="stylesheet" href="styles.css?v=31">
+  <link rel="stylesheet" href="styles.css?v=32">
+  <link rel="stylesheet" id="skin" href="themes/construction.css?v=1">
+  <script>
+    // Apply the saved skin before first paint; js/skin.js keeps the list and the version (?v=) in sync.
+    try {
+      const s = localStorage.getItem('tb.skin');
+      if (s && /^[a-z-]+$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=1`;
+    } catch {}
+  </script>
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=23"></script>
+  <script type="module" src="js/app.js?v=24"></script>
 </head>
 <body>
   <header class="topbar">
@@ -29,6 +36,7 @@
       <button type="button" class="chip-btn" id="tomorrowBtn">Tomorrow</button>
     </div>
     <div class="account">
+      <label class="skin-picker"><span>Style</span><select id="skinSelect"></select></label>
       <span id="accountLabel" class="muted"></span>
       <button type="button" class="btn" id="signInBtn">Sign in with Google</button>
       <button type="button" class="btn ghost" id="signOutBtn" hidden>Sign out</button>

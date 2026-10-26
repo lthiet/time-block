@@ -4,6 +4,7 @@ import * as gcal from './gcal.js';
 import * as drive from './drive.js';
 import * as L from './logic.js?v=21'; // bump with app.js?v= in index.html
 import * as J from './journal.js?v=21';
+import { initSkinPicker } from './skin.js?v=1';
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -1823,6 +1824,7 @@ async function main() {
   // Panels fill the screen below the (sticky, possibly wrapping) top bar.
   const topbar = $('.topbar');
   new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${topbar.offsetHeight}px`)).observe(topbar);
+  initSkinPicker($('#skinSelect'));
   loadPersisted();
   ensureTrailingBlank();
   $('#defaultDate').value = state.defaultDate;
