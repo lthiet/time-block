@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Hard grey offset shadow behind a white tile with a thick black border. -->
-  <rect x="8" y="8" width="54" height="54" fill="#111111"/>
-  <rect x="3" y="3" width="54" height="54" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+  <!-- Hard black offset shadow behind a safety-yellow tile with a thick black border. -->
+  <rect x="8" y="8" width="54" height="54" fill="#141414"/>
+  <rect x="3" y="3" width="54" height="54" fill="#ffd200" stroke="#141414" stroke-width="4"/>
   <!-- Three time blocks of different lengths. -->
-  <rect x="12" y="14" width="22" height="8" fill="#111111"/>
-  <rect x="12" y="27" width="36" height="8" fill="#55544f"/>
-  <rect x="12" y="40" width="15" height="8" fill="#bdbdb7"/>
+  <rect x="12" y="14" width="22" height="8" fill="#141414"/>
+  <rect x="12" y="27" width="36" height="8" fill="#ff6b00" stroke="#141414" stroke-width="2"/>
+  <rect x="12" y="40" width="15" height="8" fill="#141414"/>
 </svg>
