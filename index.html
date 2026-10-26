@@ -10,17 +10,17 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=33">
-  <link rel="stylesheet" id="skin" href="themes/construction.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=34">
+  <link rel="stylesheet" id="skin" href="themes/construction.css?v=7">
   <script>
     // Apply the saved skin before first paint; keep the pattern and the version (?v=) in sync with js/skin.js.
     try {
       const s = localStorage.getItem('tb.skin');
-      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=6`;
+      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=7`;
     } catch {}
   </script>
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=24"></script>
+  <script type="module" src="js/app.js?v=25"></script>
 </head>
 <body>
   <header class="topbar">

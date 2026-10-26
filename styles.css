@@ -462,6 +462,22 @@ input[type=checkbox] { accent-color: var(--accent-2); }
   transition: box-shadow .1s;
 }
 .blk:hover { box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--c) 70%, transparent); z-index: 3; }
+/* Items that share their time with another sit side by side; a badge makes the clash obvious. */
+.blk.overlap { box-shadow: inset 0 0 0 2px var(--bad); }
+.blk.overlap::after {
+  content: "!";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bad);
+  color: #fff;
+  font: 700 11px/1 var(--font);
+}
 .blk b { display: block; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .blk .blk-time { display: block; font: 10px var(--font-mono); opacity: .85; white-space: nowrap; overflow: hidden; }
 .allday-chip { display: block; font-size: 11px; font-weight: 700; padding: 1px 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

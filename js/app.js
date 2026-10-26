@@ -658,17 +658,18 @@ function blockEl(i, px) {
     width: `calc(${width}% - 2px)`,
   };
   const tall = i.e - i.s >= 30;
+  const overlap = i.lanes > 1 ? ' overlap' : ''; // shares its time with another item: shown side by side and flagged
   if (i.kind === 'event') {
     style['--c'] = i.ev.color || 'var(--muted)';
     const time = `${fmtTime(i.ev.start)}–${fmtTime(i.ev.end)}`;
-    return h('div', { class: 'blk', style, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}` },
+    return h('div', { class: `blk${overlap}`, style, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}${i.lanes > 1 ? '\nOverlaps another event' : ''}` },
       h('b', {}, i.ev.title), tall ? h('span', { class: 'blk-time' }, time) : null);
   }
   const st = rowStatus(i.row).state;
   const dragging = drag?.moved && drag.rowId === i.row.id;
   const time = `${fmtHM(i.row.start)}–${fmtHM(i.row.end)}`;
   return h('div', {
-    class: `blk draft${isTaskRow(i.row) ? ' task' : ''}${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}`,
+    class: `blk draft${isTaskRow(i.row) ? ' task' : ''}${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}${overlap}`,
     style,
     'data-row-id': i.row.id,
     title: `${i.row.title || '(untitled)'}\n${time} · new ${isTaskRow(i.row) ? 'task' : 'block'}\nDrag to move · drag the bottom edge to resize`,

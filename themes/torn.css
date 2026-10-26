@@ -140,29 +140,28 @@ body { font-size: 15px; }
 .timeline .hour { border-top-color: rgb(47 95 179 / .35); }
 .timeline .hour span { font: 400 14px var(--font); top: -9px; color: var(--red-pen); }
 
-/* Events are scraps of coloured paper with torn top and bottom edges. No two are torn or laid down alike:
-   the tilt, the tear and the shade vary by the event's place in its column. */
+/* Events are scraps of coloured paper with torn top and bottom edges. No two are torn alike:
+   the tear's offset and depth vary with the event's place in its column. */
 .blk, .allday-chip {
-  --tilt: -2.4deg;
-  --nudge: 0px;
   --tear-x: 0px;
-  --shade: 38%;
+  --tear-h: 4px;
   font-family: var(--font);
   color: var(--pen);
   border: 0;
   border-radius: 0;
-  background: color-mix(in srgb, var(--c) var(--shade), #fffef8);
-  -webkit-mask: var(--tear-top) var(--tear-x) top / 40px 4px repeat-x, var(--tear-bottom) calc(var(--tear-x) * -1) bottom / 40px 4px repeat-x, linear-gradient(#000, #000) center / 100% calc(100% - 6px) no-repeat;
-  mask: var(--tear-top) var(--tear-x) top / 40px 4px repeat-x, var(--tear-bottom) calc(var(--tear-x) * -1) bottom / 40px 4px repeat-x, linear-gradient(#000, #000) center / 100% calc(100% - 6px) no-repeat;
+  background: color-mix(in srgb, var(--c) 38%, #fffef8);
+  -webkit-mask: var(--tear-top) var(--tear-x) top / 40px var(--tear-h) repeat-x, var(--tear-bottom) calc(var(--tear-x) * -1.7) bottom / 40px var(--tear-h) repeat-x, linear-gradient(#000, #000) center / 100% calc(100% - var(--tear-h) * 1.5) no-repeat;
+  mask: var(--tear-top) var(--tear-x) top / 40px var(--tear-h) repeat-x, var(--tear-bottom) calc(var(--tear-x) * -1.7) bottom / 40px var(--tear-h) repeat-x, linear-gradient(#000, #000) center / 100% calc(100% - var(--tear-h) * 1.5) no-repeat;
 }
-.blk { padding-top: 4px; rotate: var(--tilt); translate: var(--nudge) 0; }
-.blk:nth-child(4n+2) { --tilt: 2.8deg; }
-.blk:nth-child(4n+3) { --tilt: -3.3deg; }
-.blk:nth-child(4n) { --tilt: 1.4deg; }
-.blk:nth-child(3n+2), .allday-chip:nth-child(3n+2) { --tear-x: 13px; --shade: 44%; --nudge: 3px; }
-.blk:nth-child(3n), .allday-chip:nth-child(3n) { --tear-x: 27px; --shade: 33%; --nudge: -2px; }
-.blk:nth-child(5n+3) { --tilt: 3.6deg; }
+.blk:nth-child(5n+2), .allday-chip:nth-child(5n+2) { --tear-x: 9px; --tear-h: 5px; }
+.blk:nth-child(5n+3), .allday-chip:nth-child(5n+3) { --tear-x: 18px; --tear-h: 3px; }
+.blk:nth-child(5n+4), .allday-chip:nth-child(5n+4) { --tear-x: 27px; --tear-h: 6px; }
+.blk:nth-child(5n), .allday-chip:nth-child(5n) { --tear-x: 34px; --tear-h: 4.5px; }
+.blk { padding-top: 5px; }
 .blk b { font-weight: 400; font-size: 13px; }
 .blk .blk-time { font: 11px var(--font); opacity: .75; }
 .blk.draft { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--c) 45%, #fffef8) 0 5px, color-mix(in srgb, var(--c) 25%, #fffef8) 5px 10px); }
 .blk:hover { box-shadow: none; background: color-mix(in srgb, var(--c) 52%, #fffef8); }
+/* Overlaps: red pen around the scrap (inset, since the torn mask clips anything outside it). */
+.blk.overlap { box-shadow: inset 0 0 0 2px var(--red-pen); }
+.blk.overlap::after { top: 8px; background: var(--red-pen); font-size: 13px; }
