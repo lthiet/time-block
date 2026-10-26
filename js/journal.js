@@ -3,12 +3,13 @@
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as drive from './drive.js';
-import * as L from './logic.js?v=20'; // bump with app.js?v= in index.html
+import * as L from './logic.js?v=21'; // bump with app.js?v= in index.html
 
 const $ = (sel) => document.querySelector(sel);
 const HABITS_KEY = 'tb.habits';
 const DISTRACTIONS_KEY = 'tb.distractions';
 const SHORTCUT_KEY = 'tb.captureKey';
+const HABIT_KIND_KEY = 'tb.habitKind';
 const SYNC_DEBOUNCE = 1500;
 const HEATMAP_WEEKS = 26;
 
@@ -29,7 +30,8 @@ function cleanHabits(list) {
     }
     const createdAt = Number(x.createdAt) || Date.now();
     return {
-      id: String(x.id), title: String(x.title || ''), checks, createdAt, updatedAt: Number(x.updatedAt) || 0,
+      id: String(x.id), title: String(x.title || ''), kind: x.kind === 'avoid' ? 'avoid' : 'do',
+      checks, createdAt, updatedAt: Number(x.updatedAt) || 0,
       start: /^\d{4}-\d{2}-\d{2}$/.test(x.start || '') ? x.start : L.ymd(new Date(createdAt)),
     };
   });
@@ -136,8 +138,22 @@ export const syncAll = () => Promise.all([habits.sync(), distractions.sync()]);
 // ---------------------------------------------------------------- habits
 
 const habitsEl = () => $('#habitList');
-const STATE_LABEL = { done: 'checked in', broken: 'broken', pending: 'not checked in yet', before: 'before this habit started', future: '' };
+const STATE_LABEL = {
+  do: { done: 'checked in', broken: 'broken', pending: 'not checked in yet', before: 'before this habit started', future: '' },
+  avoid: { done: 'kept', broken: 'slipped', pending: 'no slip yet', before: 'before this habit started', future: '' },
+};
 let focusedHabit = null; // habit id shown alone on the heatmap, or null for all habits
+let newKind = 'do'; // kind given to the next habit added
+
+function setNewKind(kind) {
+  newKind = kind === 'avoid' ? 'avoid' : 'do';
+  for (const b of document.querySelectorAll('#newHabitKind button')) {
+    const on = b.dataset.kind === newKind;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
+  $('#newHabit').placeholder = newKind === 'avoid' ? '+ Add a habit to avoid (Enter)' : '+ Add a habit (Enter)';
+}
 
 /** One cell per day for a single habit; yesterday and today can be toggled. */
 function habitCell(habit, date, today) {
@@ -146,7 +162,7 @@ function habitCell(habit, date, today) {
   return deps.h('span', {
     class: `hm-cell ${s}${date === today ? ' today' : ''}${can ? ' can' : ''}`,
     'data-date': date,
-    title: s === 'future' ? null : `${deps.fmtDay(date)} · ${STATE_LABEL[s]}${can ? ' · click to toggle' : ''}`,
+    title: s === 'future' ? null : `${deps.fmtDay(date)} · ${STATE_LABEL[habit.kind || 'do'][s]}${can ? ' · click to toggle' : ''}`,
   });
 }
 
@@ -180,17 +196,21 @@ function renderHeatmap(list, today) {
 function habitRow(habit, today) {
   const { h, plural } = deps;
   const stats = L.habitStats(habit, today);
-  const doneToday = L.isChecked(habit, today);
+  const ticked = L.isChecked(habit, today);
+  const avoid = L.isAvoid(habit);
   const focused = habit.id === focusedHabit;
+  let tickTitle = ticked ? 'Checked in today · click to undo' : 'Check in for today';
+  if (avoid) tickTitle = ticked ? 'Slipped today · click to undo' : 'Mark today as slipped';
   return h('li', {
-    class: `habit${doneToday ? ' done-today' : ''}${focused ? ' focused' : ''}`, 'data-id': habit.id,
+    class: `habit${avoid ? ' avoid' : ''}${ticked && !avoid ? ' done-today' : ''}${focused ? ' focused' : ''}`, 'data-id': habit.id,
     title: focused ? 'Click to show all habits' : 'Click to show only this habit on the heatmap',
   },
-  h('button', {
-    type: 'button', class: `h-check${doneToday ? ' on' : ''}`, 'aria-pressed': String(doneToday),
-    title: doneToday ? 'Checked in today · click to undo' : 'Check in for today',
-  }, '✓'),
+  h('button', { type: 'button', class: `h-check${ticked ? ' on' : ''}`, 'aria-pressed': String(ticked), title: tickTitle }, avoid ? '✗' : '✓'),
   h('span', { class: 'h-title', title: 'Double-click to rename' }, habit.title),
+  h('button', {
+    type: 'button', class: 'h-kind',
+    title: avoid ? 'Avoid: tick the days you slip · click to make it a habit to do' : 'Do: tick the days you do it · click to make it a habit to avoid',
+  }, avoid ? 'avoid' : 'do'),
   h('span', { class: 'h-stat streak', title: `Current streak: ${plural(stats.current, 'day')}` }, `${stats.current}d`),
   h('span', { class: 'h-stat', title: `Best streak: ${plural(stats.best, 'day')}` }, `best ${stats.best}`),
   h('span', { class: `h-stat${stats.broken ? ' broken' : ''}`, title: `${plural(stats.broken, 'day')} broken` }, `${stats.broken}✗`),
@@ -206,7 +226,7 @@ export function renderHabits() {
   renderHeatmap(list, today);
   el.replaceChildren(...list.map((x) => habitRow(x, today)));
   $('#habitsEmpty').hidden = list.length > 0;
-  const open = list.filter((x) => !L.isChecked(x, today)).length;
+  const open = list.filter((x) => !L.isAvoid(x) && !L.isChecked(x, today)).length;
   $('#habitsBadge').textContent = open ? String(open) : '';
   $('#habitsBadge').title = open ? `${deps.plural(open, 'habit')} not checked in today` : '';
 }
@@ -226,10 +246,23 @@ function wireHabits() {
     if (!title) return;
     e.target.value = '';
     const now = Date.now();
-    habits.items = [...habits.items, { id: deps.uid(), title, start: deps.todayStr(), checks: {}, createdAt: now }];
+    habits.items = [...habits.items, { id: deps.uid(), title, kind: newKind, start: deps.todayStr(), checks: {}, createdAt: now }];
     habits.persist();
     renderHabits();
   });
+  $('#newHabitKind').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-kind]');
+    if (!b) return;
+    setNewKind(b.dataset.kind);
+    try {
+      localStorage.setItem(HABIT_KIND_KEY, newKind);
+    } catch { /* ignore */ }
+  });
+  let savedKind = null;
+  try {
+    savedKind = localStorage.getItem(HABIT_KIND_KEY);
+  } catch { /* ignore */ }
+  setNewKind(savedKind);
 
   $('#habitMapWrap').addEventListener('click', (e) => {
     if (e.target.closest('#habitMapAll')) {
@@ -249,6 +282,12 @@ function wireHabits() {
     if (!habit) return;
     if (e.target.closest('.h-check')) {
       updateHabit(habit.id, (x) => L.toggleCheck(x, deps.todayStr(), Date.now()));
+    } else if (e.target.closest('.h-kind')) {
+      const kind = L.isAvoid(habit) ? 'do' : 'avoid';
+      const how = kind === 'avoid' ? 'Ticked days will count as slips and unticked days as kept.'
+        : 'Ticked days will count as kept and unticked days as broken.';
+      if (!confirm(`Make “${habit.title}” a habit to ${kind}? ${how}`)) return;
+      updateHabit(habit.id, (x) => ({ ...x, kind }));
     } else if (e.target.closest('.h-remove')) {
       if (!confirm(`Delete the habit “${habit.title}” and its history?`)) return;
       habits.items = habits.items.filter((x) => x.id !== habit.id);

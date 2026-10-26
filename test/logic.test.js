@@ -5,7 +5,7 @@ import {
   normalizeEvent, buildEventPayload, assignLanes, rowsRange, addMinutes,
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
   stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
-  tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit,
+  tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit, isAvoid,
   heatmapWeeks, combinedDayState, groupByDay, comboFromEvent, formatCombo, shortcutProblem,
 } from '../js/logic.js';
 
@@ -454,4 +454,33 @@ test('combinedDayState summarises all habits on a day', () => {
   assert.equal(combinedDayState([a, b], TODAY, TODAY).state, 'pending');
   assert.equal(combinedDayState([toggleCheck(a, TODAY, 1), toggleCheck(b, TODAY, 1)], TODAY, TODAY).state, 'done');
   assert.equal(combinedDayState([a], '2026-09-28', TODAY).state, 'future');
+});
+
+const avoid = (slipped, start = '2026-09-20') => ({ ...habit(slipped, start), kind: 'avoid' });
+
+test('habitDayState: an avoid habit breaks on a tick and is kept otherwise', () => {
+  const hb = avoid(['2026-09-25']);
+  assert.ok(isAvoid(hb) && !isAvoid(habit([])));
+  assert.equal(habitDayState(hb, '2026-09-19', TODAY), 'before');
+  assert.equal(habitDayState(hb, '2026-09-25', TODAY), 'broken');
+  assert.equal(habitDayState(hb, '2026-09-26', TODAY), 'done');
+  assert.equal(habitDayState(hb, TODAY, TODAY), 'pending');
+  assert.equal(habitDayState(toggleCheck(hb, TODAY, 1), TODAY, TODAY), 'broken');
+  assert.equal(habitDayState(hb, '2026-09-28', TODAY), 'future');
+});
+
+test('habitStats: an avoid habit streak counts clean days and resets on a slip', () => {
+  // 20..22 clean, 23 slipped, 24..26 clean, today open
+  const hb = avoid(['2026-09-23']);
+  assert.deepEqual(habitStats(hb, TODAY), { current: 3, best: 3, broken: 1, done: 6 });
+  assert.deepEqual(habitStats(toggleCheck(hb, TODAY, 1), TODAY), { current: 0, best: 3, broken: 2, done: 6 });
+  assert.deepEqual(habitStats(avoid([], TODAY), TODAY), { current: 0, best: 0, broken: 0, done: 0 });
+});
+
+test('combinedDayState mixes do and avoid habits', () => {
+  const a = habit(['2026-09-26']);
+  const b = { ...avoid(['2026-09-25']), id: 'b' };
+  assert.deepEqual(combinedDayState([a, b], '2026-09-25', TODAY).broken.map((x) => x.id), ['h', 'b']);
+  assert.equal(combinedDayState([a, b], '2026-09-26', TODAY).state, 'done');
+  assert.equal(combinedDayState([toggleCheck(a, TODAY, 1), b], TODAY, TODAY).state, 'pending'); // the avoid habit can still slip
 });

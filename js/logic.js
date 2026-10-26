@@ -521,11 +521,19 @@ export const HABIT_BACKFILL_DAYS = 1;
 
 export const isChecked = (habit, date) => !!habit.checks?.[date]?.on;
 
-/** 'future' | 'before' (habit didn't exist yet) | 'done' | 'pending' (today, not yet) | 'broken'. */
+/** 'do' habits are kept by ticking a day; 'avoid' habits are kept by leaving it unticked (a tick is a slip). */
+export const isAvoid = (habit) => habit.kind === 'avoid';
+
+/**
+ * 'future' | 'before' (habit didn't exist yet) | 'done' (kept) | 'pending' (today, not decided yet) | 'broken'.
+ * An avoid habit stays pending today until it's ticked (broken) or the day is over (kept).
+ */
 export function habitDayState(habit, date, today) {
   if (date > today) return 'future';
   if (date < habit.start) return 'before';
-  if (isChecked(habit, date)) return 'done';
+  const ticked = isChecked(habit, date);
+  if (isAvoid(habit)) return ticked ? 'broken' : date === today ? 'pending' : 'done';
+  if (ticked) return 'done';
   return date === today ? 'pending' : 'broken';
 }
 
@@ -538,16 +546,17 @@ export function toggleCheck(habit, date, now) {
   return { ...habit, checks: { ...habit.checks, [date]: { on: !isChecked(habit, date), at: now } } };
 }
 
-/** {current, best, broken, done}. Today only counts once it's checked; until then the streak runs to yesterday. */
+/** {current, best, broken, done}. Today only counts once it's kept or broken; until then the streak runs to yesterday. */
 export function habitStats(habit, today) {
   let run = 0, best = 0, broken = 0, done = 0;
   if (DATE_RE.test(habit.start || '')) {
     for (let d = habit.start; d <= today; d = addDays(d, 1)) {
-      if (isChecked(habit, d)) {
+      const s = habitDayState(habit, d, today);
+      if (s === 'done') {
         run++;
         done++;
         best = Math.max(best, run);
-      } else if (d < today) {
+      } else if (s === 'broken') {
         run = 0;
         broken++;
       }

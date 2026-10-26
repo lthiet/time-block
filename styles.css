@@ -685,6 +685,22 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 }
 .h-check:hover { border-color: var(--accent); color: var(--muted); }
 .h-check.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.habit.avoid .h-check:hover { border-color: var(--bad); }
+.habit.avoid .h-check.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+.h-kind {
+  flex: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 0 4px;
+  font: 600 9px var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  cursor: pointer;
+}
+.h-kind:hover { border-color: var(--accent); color: var(--accent); }
+.habits .tasks-head { display: flex; gap: 6px; align-items: stretch; }
+.habits .tasks-head input { flex: 1 1 auto; min-width: 0; width: auto; }
 .h-title { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
 .h-title-input { flex: 1 1 0; min-width: 0; padding: 1px 4px; font-size: 12px; }
 .h-stat { font: 600 10px var(--font-mono); color: var(--muted); white-space: nowrap; }
