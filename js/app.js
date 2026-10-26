@@ -681,7 +681,7 @@ function renderAgenda() {
   const dates = visibleDates();
   const week = dates.length > 1;
   const today = todayStr();
-  for (const b of document.querySelectorAll('.view-toggle button')) {
+  for (const b of document.querySelectorAll('.agenda .view-toggle button')) {
     b.classList.toggle('active', b.dataset.view === state.view);
     b.setAttribute('aria-pressed', b.dataset.view === state.view);
   }
@@ -1743,7 +1743,7 @@ function wire() {
   };
   $('#agendaPrev').addEventListener('click', () => stepAgenda(-1));
   $('#agendaNext').addEventListener('click', () => stepAgenda(1));
-  for (const b of document.querySelectorAll('.view-toggle button')) {
+  for (const b of document.querySelectorAll('.agenda .view-toggle button')) {
     b.addEventListener('click', () => setView(b.dataset.view));
   }
 

@@ -1,10 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Black tile, chamfered top-right like the panels. -->
-  <path d="M2 2h44l16 16v44H2z" fill="#111111"/>
+  <!-- Hard pink offset shadow behind a black tile with a thick light border. -->
+  <rect x="8" y="8" width="54" height="54" fill="#ff2e88"/>
+  <rect x="3" y="3" width="54" height="54" fill="#0d0d0f" stroke="#f2f2f2" stroke-width="4"/>
   <!-- Three time blocks of different lengths. -->
-  <rect x="11" y="14" width="24" height="9" fill="#ffffff"/>
-  <rect x="11" y="28" width="42" height="9" fill="#ffffff"/>
-  <rect x="11" y="42" width="16" height="9" fill="#ffffff" opacity=".55"/>
-  <!-- HUD bracket, bottom-right. -->
-  <path d="M46 56h8v-8" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <rect x="12" y="14" width="22" height="8" fill="#f5ff3b"/>
+  <rect x="12" y="27" width="36" height="8" fill="#00e5ff"/>
+  <rect x="12" y="40" width="15" height="8" fill="#ff2e88"/>
 </svg>
