@@ -2,7 +2,8 @@ import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION,
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as drive from './drive.js';
-import * as L from './logic.js?v=18'; // bump with app.js?v= in index.html
+import * as L from './logic.js?v=20'; // bump with app.js?v= in index.html
+import * as J from './journal.js?v=20';
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -248,24 +249,37 @@ function setSyncStatus(status, error = '') {
   renderSyncStatus();
 }
 
+/** Tasks, habits and distractions share one status line: the most pressing state wins. */
+function overallSync() {
+  const all = [sync, ...J.stores()];
+  return ['error', 'syncing', 'noscope'].map((s) => all.find((x) => x.status === s)).find(Boolean) || sync;
+}
+
+/** Sync the task board, habits and distractions with Google Drive. */
+function syncAll() {
+  syncTasks();
+  J.syncAll();
+}
+
 function renderSyncStatus() {
   const el = $('#taskSync');
-  const status = state.signedIn ? sync.status : 'off';
+  const worst = overallSync();
+  const status = state.signedIn ? worst.status : 'off';
   const text = {
-    off: 'Sign in to sync tasks between devices',
-    noscope: 'Tasks are only on this device.',
+    off: 'Sign in to sync between devices',
+    noscope: 'Only saved on this device.',
     syncing: 'Syncing…',
     ok: 'Synced with Google Drive',
-    error: 'Sync failed — tasks are saved on this device.',
+    error: 'Sync failed — everything is saved on this device.',
   }[status];
   const parts = [h('span', {}, text)];
   if (status === 'noscope') {
     parts.push(' ', h('button', { type: 'button', class: 'linkish', onclick: allowDriveSync }, 'Allow sync'));
   } else if (status === 'error') {
-    parts.push(' ', h('button', { type: 'button', class: 'linkish', onclick: () => syncTasks() }, 'Retry'));
+    parts.push(' ', h('button', { type: 'button', class: 'linkish', onclick: syncAll }, 'Retry'));
   }
   el.className = `task-sync ${status}`;
-  el.title = status === 'error' ? sync.error : '';
+  el.title = status === 'error' ? worst.error : '';
   el.replaceChildren(...parts);
 }
 
@@ -277,11 +291,11 @@ async function allowDriveSync() {
     return;
   }
   if (!auth.hasScope(auth.DRIVE_SCOPE)) {
-    flash('bad', 'Google Drive access was not granted, so tasks stay on this device.');
+    flash('bad', 'Google Drive access was not granted, so everything stays on this device.');
     renderSyncStatus();
     return;
   }
-  syncTasks();
+  syncAll();
 }
 
 const isTaskRow = (row) => row.cal === 'tasks';
@@ -1681,7 +1695,7 @@ async function afterSignIn() {
   renderAll();
   loadAgendaDay();
   scheduleAutoCheck();
-  syncTasks();
+  syncAll();
 }
 
 // ---------------------------------------------------------------- date bar & hash
@@ -1783,6 +1797,7 @@ function wire() {
   $('#saveBtn').addEventListener('click', onSave);
 
   document.addEventListener('keydown', (e) => {
+    if (e.target.closest?.('#capture')) return; // the distraction popup has its own keys
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       if (state.checking || state.saving) return;
@@ -1796,12 +1811,12 @@ function wire() {
 
   window.addEventListener('hashchange', applyHash);
   window.addEventListener('beforeunload', persistDraft);
-  // Pick up task changes made on another device when coming back to this tab.
+  // Pick up changes made on another device when coming back to this tab.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && Date.now() - sync.lastAt > SYNC_MIN_GAP) syncTasks();
+    if (document.visibilityState === 'visible' && Date.now() - sync.lastAt > SYNC_MIN_GAP) syncAll();
   });
   // Keep the "now" line and "today" label current if the tab stays open.
-  setInterval(() => { renderAgenda(); renderTasks(); }, 5 * 60_000);
+  setInterval(() => { renderAgenda(); renderTasks(); J.render(); }, 5 * 60_000);
 }
 
 async function main() {
@@ -1811,6 +1826,10 @@ async function main() {
   loadPersisted();
   ensureTrailingBlank();
   $('#defaultDate').value = state.defaultDate;
+  J.init({
+    h, flash, plural, fmtDay, fmtTime, todayStr, uid,
+    isSignedIn: () => state.signedIn, onSyncStatus: renderSyncStatus, onAuthError: setSignedOut,
+  });
   wire();
   applyHash();
   renderDateChips();

@@ -3,23 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Time Block</title>
-  <meta name="description" content="Batch-create time blocks in your Google Calendar with conflict checks.">
+  <title>Life Tracker</title>
+  <meta name="description" content="Plan time blocks in Google Calendar, track tasks and habits, and log distractions.">
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" href="icon.svg?v=2" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=20">
+  <link rel="stylesheet" href="styles.css?v=24">
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=18"></script>
+  <script type="module" src="js/app.js?v=21"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <img src="icon.svg?v=2" alt="" width="22" height="22">
-      <span>Time Block</span>
+      <span>Life Tracker</span>
     </div>
     <div class="datebar" role="group" aria-label="Planning date">
       <button type="button" class="icon-btn" id="prevDay" title="Previous day (Alt+←)" aria-label="Previous day">‹</button>
@@ -40,54 +40,93 @@
   </div>
 
   <main class="layout">
-    <section class="panel tasks" aria-label="Tasks">
-      <div class="tasks-head">
-        <input type="text" id="newTask" placeholder="+ Add a task (Enter)" aria-label="New task" autocomplete="off">
-        <div id="taskSync" class="task-sync" role="status"></div>
-      </div>
-      <div id="lanes" class="lanes" title="Drag a task between lanes, or onto the calendar to schedule it"></div>
-    </section>
-
-    <section class="panel entry" aria-label="Time blocks">
-      <details class="settings" id="settings">
-        <summary>
-          <span>Save to <strong id="targetSummary">—</strong></span>
-          <span class="muted" id="checkSummary"></span>
-        </summary>
-        <div class="settings-body">
-          <label class="field">
-            <span>Save blocks to</span>
-            <select id="targetSelect"></select>
-          </label>
-          <fieldset class="field">
-            <legend>Check conflicts against</legend>
-            <div id="checkList" class="check-list"><span class="muted">Sign in to load your calendars.</span></div>
-          </fieldset>
-          <label class="inline">
-            <input type="checkbox" id="includeAllDay"> Treat all-day events as conflicts
-          </label>
+    <div class="stack">
+      <section class="panel habits" aria-label="Habits">
+        <h2 class="panel-title">Habits <span class="badge" id="habitsBadge"></span></h2>
+        <div class="tasks-head">
+          <input type="text" id="newHabit" placeholder="+ Add a habit (Enter)" aria-label="New habit" autocomplete="off">
         </div>
-      </details>
-
-      <div class="grid-head" aria-hidden="true">
-        <span>#</span><span>Title</span><span>Start</span><span>End</span><span>Date</span><span>Repeat</span><span></span>
-      </div>
-      <ol id="rows" class="rows"></ol>
-
-      <div class="row-actions">
-        <button type="button" class="btn ghost" id="addRowBtn">+ Add block <kbd>Enter</kbd></button>
-        <button type="button" class="btn ghost" id="clearBtn">Clear all</button>
-      </div>
-
-      <div class="actionbar">
-        <div id="summary" class="summary" aria-live="polite"></div>
-        <div class="buttons">
-          <button type="button" class="btn" id="checkBtn">Check conflicts</button>
-          <button type="button" class="btn primary" id="saveBtn" title="Ctrl+Enter">Save</button>
+        <p id="habitsEmpty" class="muted small empty">Add a habit, then check in every day. A day without a check-in counts as broken.</p>
+        <div id="habitMapWrap" class="habit-map" hidden>
+          <div id="habitMap"></div>
+          <div id="habitMapLabel" class="muted small habit-map-label"></div>
+          <div class="legend hm-legend">
+            <span><i class="hm-cell done"></i>all kept</span>
+            <span><i class="hm-cell broken" style="--k: .5"></i>broken (darker = more)</span>
+            <span><i class="hm-cell pending today"></i>today</span>
+          </div>
         </div>
-      </div>
-      <div id="flash" class="flash" aria-live="polite" hidden></div>
-    </section>
+        <ol id="habitList" class="habit-list"></ol>
+      </section>
+
+      <section class="panel distractions" aria-label="Distractions">
+        <h2 class="panel-title">Distractions <span class="badge" id="distBadge"></span></h2>
+        <div class="tasks-head">
+          <input type="text" id="newDistraction" placeholder="+ Log a distraction (Enter)" aria-label="New distraction" autocomplete="off">
+          <div class="muted small dist-hint">
+            <span id="distStats"></span> · press <kbd class="capture-key"></kbd> (or <kbd>G</kbd>) anywhere to log one
+          </div>
+        </div>
+        <div id="distList" class="dist-list"></div>
+        <div class="shortcut-setting small">
+          <span>Capture shortcut</span> <kbd class="capture-key"></kbd>
+          <button type="button" class="chip-btn" id="shortcutBtn">Change</button>
+          <button type="button" class="linkish" id="shortcutReset" hidden>Reset</button>
+          <div id="shortcutNote" class="shortcut-note" role="status"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="panel tasks" aria-label="Tasks">
+        <div class="tasks-head">
+          <input type="text" id="newTask" placeholder="+ Add a task (Enter)" aria-label="New task" autocomplete="off">
+          <div id="taskSync" class="task-sync" role="status"></div>
+        </div>
+        <div id="lanes" class="lanes" title="Drag a task between lanes, or onto the calendar to schedule it"></div>
+      </section>
+
+      <section class="panel entry" aria-label="Time blocks">
+        <details class="settings" id="settings">
+          <summary>
+            <span>Save to <strong id="targetSummary">—</strong></span>
+            <span class="muted" id="checkSummary"></span>
+          </summary>
+          <div class="settings-body">
+            <label class="field">
+              <span>Save blocks to</span>
+              <select id="targetSelect"></select>
+            </label>
+            <fieldset class="field">
+              <legend>Check conflicts against</legend>
+              <div id="checkList" class="check-list"><span class="muted">Sign in to load your calendars.</span></div>
+            </fieldset>
+            <label class="inline">
+              <input type="checkbox" id="includeAllDay"> Treat all-day events as conflicts
+            </label>
+          </div>
+        </details>
+
+        <div class="grid-head" aria-hidden="true">
+          <span>#</span><span>Title</span><span>Start</span><span>End</span><span>Date</span><span>Repeat</span><span></span>
+        </div>
+        <ol id="rows" class="rows"></ol>
+
+        <div class="row-actions">
+          <button type="button" class="btn ghost" id="addRowBtn">+ Add block <kbd>Enter</kbd></button>
+          <button type="button" class="btn ghost" id="clearBtn">Clear all</button>
+        </div>
+
+        <div class="actionbar">
+          <div id="summary" class="summary" aria-live="polite"></div>
+          <div class="buttons">
+            <button type="button" class="btn" id="checkBtn">Check conflicts</button>
+            <button type="button" class="btn primary" id="saveBtn" title="Ctrl+Enter">Save</button>
+          </div>
+        </div>
+        <div id="flash" class="flash" aria-live="polite" hidden></div>
+      </section>
+    </div>
 
     <aside class="panel agenda" aria-label="Calendar">
       <div class="agenda-head">
@@ -106,9 +145,13 @@
     </aside>
   </main>
 
-  <footer class="foot muted small">
-    Type times like <kbd>9</kbd> <kbd>0930</kbd> <kbd>1400</kbd> · <kbd>Enter</kbd> next / new row · <kbd>Ctrl+Enter</kbd> check → save · <kbd>Backspace</kbd> on an empty title removes the row · drag on the timeline to add a block, drag a new block to move it or its bottom edge to resize · drag a task onto the calendar to schedule it
-  </footer>
+
+  <div id="capture" class="capture" hidden>
+    <div class="capture-box" role="dialog" aria-label="Log a distraction">
+      <input type="text" id="captureInput" placeholder="What did you want to look up?" aria-label="Distraction" autocomplete="off">
+      <div class="capture-foot muted small"><span id="captureNote"></span><span><kbd>Enter</kbd> log · <kbd>Esc</kbd> cancel</span></div>
+    </div>
+  </div>
 
   <template id="rowTpl">
     <li class="row">

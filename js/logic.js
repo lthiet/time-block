@@ -497,3 +497,151 @@ export function mergeTaskDocs(a, b, now) {
   const tasks = order.map((id) => pick.get(id)).filter((t) => !(deleted[t.id] >= taskStamp(t)));
   return { tasks, deleted, orderedAt: Math.max(a.orderedAt || 0, b.orderedAt || 0) };
 }
+
+// ---------------------------------------------------------------- record sync (habits, distractions)
+
+/**
+ * Merge two record lists `{items, deleted: {id: ms}}` like task boards, without an order of their own
+ * (callers sort). `combine(mine, theirs)` resolves a record both sides have; by default the newer edit wins.
+ */
+export function mergeRecordDocs(a, b, now, combine = (x, y) => (taskStamp(y) > taskStamp(x) ? y : x)) {
+  const merged = mergeTaskDocs(
+    { tasks: a?.items || [], deleted: a?.deleted },
+    { tasks: b?.items || [], deleted: b?.deleted }, now);
+  const theirs = new Map((b?.items || []).map((t) => [t.id, t]));
+  const mine = new Map((a?.items || []).map((t) => [t.id, t]));
+  const items = merged.tasks.map((t) => (mine.has(t.id) && theirs.has(t.id) ? combine(mine.get(t.id), theirs.get(t.id)) : t));
+  return { items, deleted: merged.deleted };
+}
+
+// ---------------------------------------------------------------- habits
+
+/** How many days back (before today) a missed check-in can still be fixed. */
+export const HABIT_BACKFILL_DAYS = 1;
+
+export const isChecked = (habit, date) => !!habit.checks?.[date]?.on;
+
+/** 'future' | 'before' (habit didn't exist yet) | 'done' | 'pending' (today, not yet) | 'broken'. */
+export function habitDayState(habit, date, today) {
+  if (date > today) return 'future';
+  if (date < habit.start) return 'before';
+  if (isChecked(habit, date)) return 'done';
+  return date === today ? 'pending' : 'broken';
+}
+
+export function canToggleDay(habit, date, today) {
+  return date <= today && date >= habit.start && date >= addDays(today, -HABIT_BACKFILL_DAYS);
+}
+
+/** Check in (or undo) `date`. Each day keeps the time it was set, so two devices merge per day. */
+export function toggleCheck(habit, date, now) {
+  return { ...habit, checks: { ...habit.checks, [date]: { on: !isChecked(habit, date), at: now } } };
+}
+
+/** {current, best, broken, done}. Today only counts once it's checked; until then the streak runs to yesterday. */
+export function habitStats(habit, today) {
+  let run = 0, best = 0, broken = 0, done = 0;
+  if (DATE_RE.test(habit.start || '')) {
+    for (let d = habit.start; d <= today; d = addDays(d, 1)) {
+      if (isChecked(habit, d)) {
+        run++;
+        done++;
+        best = Math.max(best, run);
+      } else if (d < today) {
+        run = 0;
+        broken++;
+      }
+    }
+  }
+  return { current: run, best, broken, done };
+}
+
+/** Same habit edited on two devices: the newer edit wins, check-ins merge per day (latest change wins). */
+export function mergeHabit(a, b) {
+  const [newer, older] = taskStamp(b) > taskStamp(a) ? [b, a] : [a, b];
+  const checks = { ...older.checks };
+  for (const [d, c] of Object.entries(newer.checks || {})) {
+    if (!checks[d] || (c?.at || 0) >= (checks[d]?.at || 0)) checks[d] = c;
+  }
+  return { ...newer, checks };
+}
+
+/**
+ * One day across all habits, for the shared heatmap: `state` is 'future', 'before' (no habit existed yet),
+ * 'done' (all kept), 'broken' (at least one missed) or 'pending' (today, not all checked in yet).
+ * `broken` lists the habits missed that day.
+ */
+export function combinedDayState(habits, date, today) {
+  if (date > today) return { state: 'future', total: 0, done: 0, broken: [] };
+  const active = habits.filter((x) => date >= x.start);
+  const states = active.map((x) => [x, habitDayState(x, date, today)]);
+  const done = states.filter(([, s]) => s === 'done').length;
+  const broken = states.filter(([, s]) => s === 'broken').map(([x]) => x);
+  const state = !active.length ? 'before' : broken.length ? 'broken' : done === active.length ? 'done' : 'pending';
+  return { state, total: active.length, done, broken };
+}
+
+/** `weeks` Monday-first columns of dates, oldest first, the last one holding `today`. */
+export function heatmapWeeks(today, weeks) {
+  const start = addDays(today, -((weekdayOf(today) + 6) % 7) - 7 * (weeks - 1));
+  return Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, i) => addDays(start, w * 7 + i)));
+}
+
+// ---------------------------------------------------------------- distractions
+
+/** Entries grouped by local day, newest day first; each day in the order things happened. */
+export function groupByDay(entries) {
+  const days = new Map();
+  for (const e of [...entries].sort((x, y) => x.at - y.at)) {
+    const d = ymd(new Date(e.at));
+    if (!days.has(d)) days.set(d, []);
+    days.get(d).push(e);
+  }
+  return [...days].sort((x, y) => (x[0] < y[0] ? 1 : -1)).map(([date, items]) => ({ date, items }));
+}
+
+// ---------------------------------------------------------------- keyboard shortcuts
+
+const MOD_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'OS', 'AltGraph']);
+
+/**
+ * A keydown as a combo string such as "Ctrl+Shift+D", or '' for a lone modifier. Letters and digits
+ * come from the physical key (`code`), so the combo holds with Shift, Alt/Option or another layout.
+ */
+export function comboFromEvent(e) {
+  let key;
+  if (/^Key[A-Z]$/.test(e.code || '')) key = e.code.slice(3);
+  else if (/^Digit\d$/.test(e.code || '')) key = e.code.slice(5);
+  else if (MOD_KEYS.has(e.key) || !e.key) return '';
+  else key = e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  const mods = [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Meta'].filter(Boolean);
+  return [...mods, key].join('+');
+}
+
+export const defaultCaptureCombo = (mac) => (mac ? 'Meta+Shift+G' : 'Ctrl+Shift+G');
+
+/** "⌘⇧D" on a Mac, "Ctrl+Shift+D" elsewhere. */
+export function formatCombo(combo, mac) {
+  const parts = combo.split('+');
+  const key = parts.pop() || '+';
+  if (mac) return parts.map((m) => ({ Ctrl: '⌃', Alt: '⌥', Shift: '⇧', Meta: '⌘' })[m] || m).join('') + key;
+  return [...parts.map((m) => (m === 'Meta' ? 'Win' : m)), key].join('+');
+}
+
+// Shortcuts the browser or OS keeps for itself, so a page never sees them.
+const RESERVED = new Set([
+  'Ctrl+N', 'Ctrl+T', 'Ctrl+W', 'Ctrl+Shift+N', 'Ctrl+Shift+T', 'Ctrl+Shift+W', 'Ctrl+Tab', 'Ctrl+Shift+Tab', 'Alt+F4', 'Alt+Tab',
+  'Meta+N', 'Meta+T', 'Meta+W', 'Meta+Q', 'Meta+H', 'Meta+M', 'Meta+Shift+N', 'Meta+Shift+T', 'Meta+Shift+W', 'Meta+Tab', 'Meta+Space',
+]);
+
+/** Why `combo` can't be the capture shortcut, or '' if it's fine. */
+export function shortcutProblem(combo) {
+  if (!combo) return 'Press a key together with Ctrl, Alt or ⌘.';
+  const parts = combo.split('+');
+  const key = parts.at(-1);
+  const mods = parts.slice(0, -1);
+  if (!mods.some((m) => m !== 'Shift') && !/^F\d{1,2}$/.test(key)) return 'Add Ctrl, Alt or ⌘, or it would fire while you type.';
+  if (RESERVED.has(combo)) return 'The browser keeps that shortcut for itself.';
+  if (['Ctrl+Enter', 'Meta+Enter', 'Alt+ArrowLeft', 'Alt+ArrowRight'].includes(combo)) return 'That shortcut is already used by this app.';
+  return '';
+}
