@@ -1,9 +1,9 @@
 import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION, TASK_DURATION } from '../config.js';
 import * as auth from './auth.js';
-import * as gcal from './gcal.js';
+import * as gcal from './gcal.js?v=2'; // bump when gcal.js changes
 import * as drive from './drive.js';
-import * as L from './logic.js?v=24'; // bump with app.js?v= in index.html
-import * as J from './journal.js?v=24';
+import * as L from './logic.js?v=25'; // bump with app.js?v= in index.html
+import * as J from './journal.js?v=25';
 import { initSkinPicker } from './skin.js?v=1';
 
 const $ = (sel) => document.querySelector(sel);
@@ -645,8 +645,16 @@ function dayItems(date) {
   return { items, allDay: events.filter((e) => e.allDay) };
 }
 
+// Existing events on the calendar, by data-ev key, so a click can open their details.
+const shownEvents = new Map();
+function eventAttrs(e) {
+  const key = `${e.calendarId}\n${e.id}`;
+  shownEvents.set(key, e);
+  return { 'data-ev': key, tabindex: 0, role: 'button', 'aria-haspopup': 'dialog' };
+}
+
 function allDayChip(e) {
-  return h('span', { class: 'allday-chip', style: { '--c': e.color || 'var(--muted)' }, title: `${e.title} · ${e.calendarName}` }, e.title);
+  return h('span', { class: 'allday-chip', style: { '--c': e.color || 'var(--muted)' }, title: `${e.title} · ${e.calendarName}\nClick for details`, ...eventAttrs(e) }, e.title);
 }
 
 function blockEl(i, px) {
@@ -662,7 +670,7 @@ function blockEl(i, px) {
   if (i.kind === 'event') {
     style['--c'] = i.ev.color || 'var(--muted)';
     const time = `${fmtTime(i.ev.start)}–${fmtTime(i.ev.end)}`;
-    return h('div', { class: `blk${stacked}`, style, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}` },
+    return h('div', { class: `blk${stacked}`, style, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}\nClick for details`, ...eventAttrs(i.ev) },
       h('b', {}, i.ev.title), tall ? h('span', { class: 'blk-time' }, time) : null);
   }
   const st = rowStatus(i.row).state;
@@ -695,6 +703,7 @@ function renderAgenda() {
   $('#agendaNote').textContent = !state.signedIn ? 'Sign in to see your calendar here.'
     : dates.some((d) => !state.dayCache.has(d)) ? 'Loading…' : '';
 
+  shownEvents.clear();
   const cols = dates.map(dayItems);
   $('#agendaAllDay').replaceChildren(...(week ? [] : cols[0].allDay.map(allDayChip)));
 
@@ -858,13 +867,14 @@ function wireTimelineDrag() {
   // Week view: clicking a day header opens that day.
   tl.addEventListener('click', (e) => {
     const head = e.target.closest('.tl-dayhead');
-    if (!head) return;
+    if (!head || e.target.closest('[data-ev]')) return;
     state.agendaDate = head.dataset.date;
     setView('day');
   });
 
   tl.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0 || drag || !e.target.closest('.tl-body')) return;
+    // Existing events open their details on click instead of drawing a block over them.
+    if (e.button !== 0 || drag || !e.target.closest('.tl-body') || e.target.closest('[data-ev]')) return;
     const m = minutesAt(e.clientY);
     const blk = e.target.closest('.blk.draft');
     const base = { pointerId: e.pointerId, date: dateAt(e.clientX), startX: e.clientX, startY: e.clientY, moved: false };
@@ -956,6 +966,292 @@ function wireTimelineDrag() {
     endDrag(tl, { cancel: true });
     renderAgenda();
   });
+}
+
+// ---------------------------------------------------------------- event details card
+
+const card = { ev: null, anchor: null, mode: 'view', busy: false, error: '' }; // mode: view | edit | delete
+const RSVP = { accepted: '✓', declined: '✗', tentative: '?', needsAction: '·' };
+const RSVP_LABEL = { accepted: 'going', declined: 'not going', tentative: 'maybe', needsAction: 'no reply' };
+const URL_RE = /\bhttps?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/g;
+
+/** Text with its web addresses turned into links. */
+function linkify(text) {
+  const out = [];
+  let last = 0;
+  for (const m of text.matchAll(URL_RE)) {
+    out.push(text.slice(last, m.index), h('a', { href: m[0], target: '_blank', rel: 'noopener noreferrer' }, m[0]));
+    last = m.index + m[0].length;
+  }
+  out.push(text.slice(last));
+  return out;
+}
+
+const safeHref = (href) => (/^(https?:|mailto:)/i.test(href || '') ? href : null);
+
+/**
+ * An event description, which Google stores as plain text or simple HTML, rebuilt from scratch
+ * with only text, line breaks, lists, emphasis and web links, so nothing in it can run.
+ */
+function richText(src) {
+  const doc = new DOMParser().parseFromString(`<body>${src}</body>`, 'text/html');
+  const html = [...doc.body.querySelectorAll('*')].length > 0;
+  const walk = (node) => [...node.childNodes].flatMap((n) => {
+    if (n.nodeType === Node.TEXT_NODE) {
+      const parts = n.textContent.split('\n');
+      return parts.flatMap((p, i) => [...(i ? [h('br')] : []), ...linkify(p)]);
+    }
+    if (n.nodeType !== Node.ELEMENT_NODE) return [];
+    const tag = n.tagName.toLowerCase();
+    if (tag === 'br') return [h('br')];
+    if (tag === 'a') {
+      const href = safeHref(n.getAttribute('href'));
+      return href ? [h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, n.textContent)] : walk(n);
+    }
+    if (['b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li'].includes(tag)) return [h(tag, {}, walk(n))];
+    if (['p', 'div'].includes(tag)) return [h('div', {}, walk(n))];
+    if (['script', 'style'].includes(tag)) return [];
+    return walk(n);
+  });
+  return html ? walk(doc.body) : linkify(src).flatMap((p) => (typeof p === 'string'
+    ? p.split('\n').flatMap((line, i) => [...(i ? [h('br')] : []), line]) : [p]));
+}
+
+/** The description as plain text for the edit box: line breaks kept, tags dropped. */
+function plainText(src) {
+  if (!/<[a-z][^>]*>/i.test(src)) return src;
+  const doc = new DOMParser().parseFromString(`<body>${src.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li)>/gi, '\n')}</body>`, 'text/html');
+  for (const el of doc.body.querySelectorAll('script, style')) el.remove();
+  return doc.body.textContent.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function eventWhen(ev) {
+  const sameDay = (a, b) => L.ymd(a) === L.ymd(b);
+  if (ev.allDay) {
+    const last = L.addDays(L.ymd(ev.end), -1);
+    const first = L.ymd(ev.start);
+    return last === first ? `${fmtDay(first)} · all day` : `${fmtDay(first)} – ${fmtDay(last)} · all day`;
+  }
+  return sameDay(ev.start, new Date(ev.end - 1))
+    ? `${fmtDay(L.ymd(ev.start))} · ${fmtTime(ev.start)}–${fmtTime(ev.end)}`
+    : `${fmtDay(L.ymd(ev.start))} ${fmtTime(ev.start)} – ${fmtDay(L.ymd(ev.end))} ${fmtTime(ev.end)}`;
+}
+
+function openEventCard(ev, anchor) {
+  Object.assign(card, { ev, anchor, mode: 'view', busy: false, error: '' });
+  renderEventCard();
+  $('#evCard').querySelector('.ev-close').focus();
+}
+
+function closeEventCard({ restoreFocus = true } = {}) {
+  const box = $('#evCard');
+  if (box.hidden) return;
+  box.hidden = true;
+  box.replaceChildren();
+  const key = card.ev && `${card.ev.calendarId}\n${card.ev.id}`;
+  card.ev = null;
+  if (restoreFocus && key) document.querySelector(`[data-ev="${CSS.escape(key)}"]`)?.focus();
+}
+
+function renderEventCard() {
+  const ev = card.ev;
+  const box = $('#evCard');
+  if (!ev) return;
+  const d = ev.details;
+  const flair = L.flairFor(ev.title);
+  const banner = h('div', { class: `ev-banner${flair ? '' : ' plain'}` },
+    flair ? h('img', {
+      src: L.flairUrl(flair), alt: '', referrerpolicy: 'no-referrer',
+      onerror: (e) => { e.target.parentNode.classList.add('plain'); e.target.remove(); },
+    }) : null,
+    h('button', { type: 'button', class: 'icon-btn ev-close', 'aria-label': 'Close', title: 'Close (Esc)', onclick: () => closeEventCard() }, '×'));
+
+  let body;
+  if (card.mode === 'edit') body = eventEditForm(ev);
+  else {
+    const rows = [
+      h('h3', { class: 'ev-title', id: 'evCardTitle' }, ev.title),
+      h('div', { class: 'ev-line' }, eventWhen(ev), d.recurringEventId ? h('span', { class: 'tag' }, 'repeats') : null),
+      h('div', { class: 'ev-line muted' }, h('span', { class: 'swatch', style: { background: ev.color || 'var(--muted)' } }), ev.calendarName),
+    ];
+    if (d.location) {
+      rows.push(h('div', { class: 'ev-line' }, h('span', { class: 'ev-ico', 'aria-hidden': 'true' }, '⌖'),
+        h('a', { href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.location)}`, target: '_blank', rel: 'noopener noreferrer' }, d.location)));
+    }
+    if (d.video && safeHref(d.video)) {
+      rows.push(h('div', { class: 'ev-line' }, h('a', { class: 'btn ev-join', href: d.video, target: '_blank', rel: 'noopener noreferrer' }, 'Join video call')));
+    }
+    if (d.organizer) rows.push(h('div', { class: 'ev-line muted small' }, `Organised by ${d.organizer}`));
+    if (d.attendees.length) {
+      const going = d.attendees.filter((a) => a.status === 'accepted').length;
+      const shown = d.attendees.slice(0, 8);
+      rows.push(h('details', { class: 'ev-guests' },
+        h('summary', {}, `${plural(d.attendees.length, 'guest')} · ${going} going`),
+        h('ul', {}, shown.map((a) => h('li', { title: RSVP_LABEL[a.status] || a.status },
+          h('span', { class: `rsvp ${a.status}`, 'aria-label': RSVP_LABEL[a.status] || a.status }, RSVP[a.status] || '·'),
+          `${a.name}${a.self ? ' (you)' : ''}${a.organizer ? ' · organiser' : ''}`))),
+        d.attendees.length > shown.length ? h('div', { class: 'muted small' }, `+${d.attendees.length - shown.length} more`) : null));
+    }
+    if (d.description) rows.push(h('div', { class: 'ev-desc' }, richText(d.description)));
+    body = h('div', { class: 'ev-body' }, rows, card.mode === 'delete' ? deleteConfirm(ev) : eventActions(ev));
+  }
+  box.replaceChildren(banner, body);
+  box.style.setProperty('--c', ev.color || 'var(--muted)');
+  box.setAttribute('aria-labelledby', 'evCardTitle');
+  box.hidden = false;
+  placeEventCard();
+}
+
+function cardStatus() {
+  return card.error ? h('div', { class: 'ev-error', role: 'alert' }, card.error)
+    : card.busy ? h('div', { class: 'muted small', role: 'status' }, 'Saving…') : null;
+}
+
+function eventActions(ev) {
+  const d = ev.details;
+  return h('div', {},
+    cardStatus(),
+    h('div', { class: 'ev-actions' },
+      d.canEdit ? h('button', { type: 'button', class: 'btn', onclick: () => { card.mode = 'edit'; card.error = ''; renderEventCard(); $('#evCard .ev-f-title')?.focus(); } }, 'Edit') : null,
+      d.canDelete ? h('button', { type: 'button', class: 'btn ghost ev-del', onclick: () => { card.mode = 'delete'; card.error = ''; renderEventCard(); } }, 'Delete') : null,
+      ev.link ? h('a', { class: 'linkish ev-open', href: ev.link, target: '_blank', rel: 'noopener noreferrer' }, 'Open in Google Calendar ↗') : null));
+}
+
+function deleteConfirm(ev) {
+  const series = ev.details.recurringEventId;
+  const invited = !ev.details.canEdit;
+  return h('div', { class: 'ev-confirm' },
+    h('div', { class: 'small' }, series ? 'Delete this repeating event:'
+      : invited ? 'Remove this invitation from your calendar?' : 'Delete this event?'),
+    cardStatus(),
+    h('div', { class: 'ev-actions' },
+      h('button', { type: 'button', class: 'btn danger', disabled: card.busy, onclick: () => deleteShownEvent(ev, false) }, series ? 'This event' : 'Delete'),
+      series ? h('button', { type: 'button', class: 'btn danger', disabled: card.busy, onclick: () => deleteShownEvent(ev, true) }, 'All events') : null,
+      h('button', { type: 'button', class: 'btn ghost', disabled: card.busy, onclick: () => { card.mode = 'view'; card.error = ''; renderEventCard(); } }, 'Cancel')));
+}
+
+function eventEditForm(ev) {
+  const d = ev.details;
+  const field = (label, input) => h('label', { class: 'ev-field' }, h('span', {}, label), input);
+  const startDate = L.ymd(ev.start);
+  const endDate = ev.allDay ? L.addDays(L.ymd(ev.end), -1) : L.ymd(ev.end);
+  const desc = plainText(d.description);
+  const form = h('form', { class: 'ev-body ev-form', novalidate: true },
+    field('Title', h('input', { class: 'ev-f-title', name: 'title', type: 'text', value: ev.title, autocomplete: 'off', required: true })),
+    h('div', { class: `ev-when${ev.allDay ? ' all-day' : ''}` },
+      field('Start', h('input', { name: 'startDate', type: 'date', value: startDate })),
+      ev.allDay ? null : field(' ', h('input', { name: 'startTime', type: 'text', value: fmtTime(ev.start), placeholder: '09:00', autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Start time' })),
+      field('End', h('input', { name: 'endDate', type: 'date', value: endDate })),
+      ev.allDay ? null : field(' ', h('input', { name: 'endTime', type: 'text', value: fmtTime(ev.end), placeholder: '10:00', autocomplete: 'off', spellcheck: 'false', 'aria-label': 'End time' }))),
+    field('Location', h('input', { name: 'location', type: 'text', value: d.location, autocomplete: 'off' })),
+    field('Description', h('textarea', { name: 'description', rows: 4 }, desc)),
+    d.recurringEventId ? h('div', { class: 'muted small' }, 'Changes apply to this event only. To change the whole series, open it in Google Calendar.') : null,
+    cardStatus(),
+    h('div', { class: 'ev-actions' },
+      h('button', { type: 'submit', class: 'btn primary', disabled: card.busy }, 'Save'),
+      h('button', { type: 'button', class: 'btn ghost', disabled: card.busy, onclick: () => { card.mode = 'view'; card.error = ''; renderEventCard(); } }, 'Cancel')));
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(form));
+    // Only send the description when it was changed, so formatting made in Google isn't flattened.
+    if (f.description === desc) delete f.description;
+    saveShownEvent(ev, f);
+  });
+  return form;
+}
+
+/** Keep task cards in step with a scheduled task's event that was changed or deleted here. */
+function syncScheduledTask(ev, change) {
+  const task = state.tasks.find((t) => t.scheduled?.eventId === ev.id);
+  if (!task) return;
+  task.scheduled = change && { ...task.scheduled, ...change };
+  persistTasks();
+  renderTasks();
+}
+
+async function afterEventChange(message) {
+  closeEventCard({ restoreFocus: false });
+  state.dayCache.clear();
+  state.checkedSig = null; // conflicts may have changed
+  flash('ok', message);
+  renderActions();
+  await loadAgendaDay({ force: true });
+}
+
+async function saveShownEvent(ev, form) {
+  const { patch, error } = L.buildEventPatch(form, ev, TZ);
+  if (error) { card.error = error; renderEventCard(); return; }
+  if (!Object.keys(patch).length) { card.mode = 'view'; card.error = ''; renderEventCard(); return; }
+  card.busy = true;
+  card.error = '';
+  renderEventCard();
+  try {
+    const res = await gcal.patchEvent(ev.calendarId, ev.id, patch);
+    if (!ev.allDay && res?.start?.dateTime) {
+      const s = new Date(res.start.dateTime);
+      syncScheduledTask(ev, { date: L.ymd(s), start: fmtTime(s), end: fmtTime(new Date(res.end.dateTime)) });
+    }
+    await afterEventChange(`Updated “${res?.summary || ev.title}” in Google Calendar.`);
+  } catch (e) {
+    if (e instanceof gcal.AuthError) setSignedOut();
+    card.busy = false;
+    card.error = `Couldn't save: ${e.message}`;
+    if (card.ev) renderEventCard();
+  }
+}
+
+async function deleteShownEvent(ev, wholeSeries) {
+  card.busy = true;
+  card.error = '';
+  renderEventCard();
+  try {
+    await gcal.deleteEvent(ev.calendarId, wholeSeries ? ev.details.recurringEventId : ev.id);
+    syncScheduledTask(ev, null);
+    await afterEventChange(wholeSeries ? `Deleted every “${ev.title}” event.` : `Deleted “${ev.title}”.`);
+  } catch (e) {
+    if (e instanceof gcal.AuthError) setSignedOut();
+    card.busy = false;
+    card.error = `Couldn't delete: ${e.message}`;
+    if (card.ev) renderEventCard();
+  }
+}
+
+/** Next to the clicked event, on whichever side has room; a sheet at the bottom on phones. */
+function placeEventCard() {
+  const box = $('#evCard');
+  box.classList.remove('sheet');
+  box.style.left = box.style.top = '';
+  const a = card.anchor?.isConnected ? card.anchor.getBoundingClientRect() : null;
+  if (!a || innerWidth < 600) { box.classList.add('sheet'); return; }
+  const w = box.offsetWidth;
+  const hgt = box.offsetHeight;
+  const gap = 8;
+  let left = a.left - w - gap >= 8 ? a.left - w - gap : a.right + gap;
+  left = clamp(left, 8, innerWidth - w - 8);
+  const top = clamp(a.top, 8, Math.max(8, innerHeight - hgt - 8));
+  box.style.left = `${left}px`;
+  box.style.top = `${top}px`;
+}
+
+function wireEventCard() {
+  const open = (el) => {
+    const ev = shownEvents.get(el.dataset.ev);
+    if (ev) openEventCard(ev, el);
+  };
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest?.('[data-ev]');
+    if (el) { open(el); return; }
+    // composedPath still holds the card when the click re-rendered it (e.g. Edit).
+    const box = $('#evCard');
+    if (!box.hidden && !e.composedPath().includes(box)) closeEventCard({ restoreFocus: false });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!$('#evCard').hidden && e.key === 'Escape') { e.preventDefault(); closeEventCard(); return; }
+    const el = (e.key === 'Enter' || e.key === ' ') && e.target.closest?.('[data-ev]');
+    if (el) { e.preventDefault(); open(el); }
+  });
+  addEventListener('resize', () => { if (!$('#evCard').hidden) placeEventCard(); });
+  $('#timeline').addEventListener('scroll', () => closeEventCard({ restoreFocus: false }), { passive: true });
 }
 
 // ---------------------------------------------------------------- task board
@@ -1853,7 +2149,7 @@ function wire() {
   $('#saveBtn').addEventListener('click', onSave);
 
   document.addEventListener('keydown', (e) => {
-    if (e.target.closest?.('#capture')) return; // the distraction popup has its own keys
+    if (e.target.closest?.('#capture, #evCard')) return; // the distraction popup and event card have their own keys
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       if (state.checking || state.saving) return;
@@ -1890,6 +2186,7 @@ async function main() {
     isSignedIn: () => state.signedIn, onSyncStatus: renderSyncStatus, onAuthError: setSignedOut,
   });
   wire();
+  wireEventCard();
   applyHash();
   renderDateChips();
   renderAccount();

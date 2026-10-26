@@ -7,6 +7,7 @@ import {
   stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
   tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit, isAvoid,
   heatmapWeeks, combinedDayState, groupByDay, countByDay, comboFromEvent, formatCombo, shortcutProblem,
+  flairFor, flairUrl, buildEventPatch,
 } from '../js/logic.js';
 
 const TODAY = '2026-09-27'; // a Sunday
@@ -501,3 +502,51 @@ test('countByDay counts entries per local day', () => {
   ]), { '2026-09-27': 2, '2026-09-26': 1 });
   assert.deepEqual(countByDay([]), {});
 });
+
+test('normalizeEvent uses the event colour and keeps details', () => {
+  const n = normalizeEvent(ev({
+    colorId: '11', location: 'Hall', hangoutLink: 'https://meet.google.com/abc',
+    organizer: { email: 'boss@x.com' }, recurringEventId: 'series1',
+    attendees: [{ email: 'me@x.com', self: true, responseStatus: 'accepted' }, { email: 'room@x.com', resource: true }],
+  }), { ...cal, accessRole: 'owner' });
+  assert.equal(n.color, '#d50000');
+  assert.equal(n.details.location, 'Hall');
+  assert.equal(n.details.video, 'https://meet.google.com/abc');
+  assert.equal(n.details.attendees.length, 1);
+  assert.equal(n.details.recurringEventId, 'series1');
+  assert.equal(n.details.canEdit, false); // someone else's invitation
+  assert.equal(n.details.canDelete, true);
+  const own = normalizeEvent(ev({ organizer: { self: true } }), { ...cal, accessRole: 'writer' });
+  assert.equal(own.color, cal.color);
+  assert.equal(own.details.canEdit, true);
+  assert.equal(normalizeEvent(ev(), { ...cal, accessRole: 'reader' }).details.canDelete, false);
+});
+
+test('flairFor matches whole words in any case', () => {
+  assert.equal(flairFor('Concert at the park'), 'concert');
+  assert.equal(flairFor('Sam’s BDAY'), 'birthday');
+  assert.equal(flairFor('Play tennis'), 'tennis');
+  assert.equal(flairFor('Dîner chez Paul'), 'dinner');
+  assert.equal(flairFor('Starting the report'), ''); // "art" inside a word
+  assert.equal(flairFor('Standup'), '');
+  assert.match(flairUrl('concert'), /^https:\/\/ssl\.gstatic\.com\/.*\/img_concert\.jpg$/);
+});
+
+test('buildEventPatch sends only what changed', () => {
+  const e = normalizeEvent(ev({ organizer: { self: true } }), cal);
+  const base = { title: e.title, location: '', startDate: TODAY, endDate: TODAY, startTime: L_hm(e.start), endTime: L_hm(e.end) };
+  assert.deepEqual(buildEventPatch(base, e, 'Europe/Paris'), { patch: {} });
+  const moved = buildEventPatch({ ...base, title: 'New', startTime: '11', endTime: '11:30' }, e, 'Europe/Paris').patch;
+  assert.equal(moved.summary, 'New');
+  assert.deepEqual(moved.start, { dateTime: `${TODAY}T11:00:00`, timeZone: 'Europe/Paris' });
+  assert.ok(buildEventPatch({ ...base, endTime: '08:00' }, e, 'UTC').error);
+  assert.ok(buildEventPatch({ ...base, title: ' ' }, e, 'UTC').error);
+  assert.equal(buildEventPatch({ ...base, description: 'hi' }, e, 'UTC').patch.description, 'hi');
+
+  const allDay = normalizeEvent(ev({ start: { date: TODAY }, end: { date: '2026-09-28' } }), cal, { includeAllDay: true });
+  const one = { title: allDay.title, location: '', startDate: TODAY, endDate: TODAY };
+  assert.deepEqual(buildEventPatch(one, allDay, 'UTC'), { patch: {} });
+  assert.deepEqual(buildEventPatch({ ...one, endDate: '2026-09-29' }, allDay, 'UTC').patch.end, { date: '2026-09-30' });
+});
+
+const L_hm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;

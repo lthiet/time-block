@@ -233,8 +233,159 @@ export function normalizeEvent(ev, cal, { includeAllDay = false } = {}) {
     link: ev.htmlLink,
     calendarId: cal.id,
     calendarName: cal.name,
-    color: cal.color,
+    color: EVENT_COLORS[ev.colorId] || cal.color,
+    details: eventDetails(ev, cal),
   };
+}
+
+/** Google Calendar's event colours (colorId → colour), as its apps show them today. */
+export const EVENT_COLORS = {
+  1: '#7986cb', // Lavender
+  2: '#33b679', // Sage
+  3: '#8e24aa', // Grape
+  4: '#e67c73', // Flamingo
+  5: '#f6bf26', // Banana
+  6: '#f4511e', // Tangerine
+  7: '#039be5', // Peacock
+  8: '#616161', // Graphite
+  9: '#3f51b5', // Blueberry
+  10: '#0b8043', // Basil
+  11: '#d50000', // Tomato
+};
+
+const WRITABLE = ['owner', 'writer'];
+
+/** What the event details card shows and may change. */
+function eventDetails(ev, cal) {
+  const video = ev.hangoutLink
+    || (ev.conferenceData?.entryPoints || []).find((p) => p.entryPointType === 'video')?.uri || '';
+  const attendees = (ev.attendees || []).filter((a) => !a.resource).map((a) => ({
+    name: a.displayName || a.email || '',
+    email: a.email || '',
+    status: a.responseStatus || 'needsAction',
+    self: !!a.self,
+    organizer: !!a.organizer,
+  }));
+  const writable = WRITABLE.includes(cal.accessRole);
+  return {
+    description: ev.description || '',
+    location: ev.location || '',
+    video,
+    attendees,
+    organizer: ev.organizer && !ev.organizer.self ? ev.organizer.displayName || ev.organizer.email || '' : '',
+    recurringEventId: ev.recurringEventId || '',
+    // An invitation from someone else can only be removed from your calendar, not changed.
+    canEdit: writable && (!ev.organizer || !!ev.organizer.self || !!ev.guestsCanModify),
+    canDelete: writable,
+  };
+}
+
+/**
+ * Google Calendar's illustrations ("flairs") for events whose title mentions a keyword, e.g. a
+ * concert picture for "Concert at the park". Google's API doesn't say which one it shows, so this
+ * matches titles the same way. More specific keywords come first.
+ */
+const FLAIRS = [
+  ['birthday', 'birthday|bday|b-day|anniversaire|cumpleaños|geburtstag'],
+  ['wedding', 'wedding|mariage|hochzeit|boda'],
+  ['graduation', 'graduation|commencement'],
+  ['xmas', 'christmas|xmas|noël|noel|weihnachten'],
+  ['newyear', "new year|new year's|nouvel an|silvester|nye"],
+  ['halloween', 'halloween'],
+  ['thanksgiving', 'thanksgiving'],
+  ['chinesenewyear', 'chinese new year|lunar new year'],
+  ['concert', 'concert|gig|live music|festival|konzert'],
+  ['cinema', 'cinema|movie|movies|film|cinéma|kino'],
+  ['theater', 'theater|theatre|musical|opera|ballet|théâtre'],
+  ['bookclub', 'book club|bookclub'],
+  ['read', 'read|reading|lesen'],
+  ['breakfast', 'breakfast|petit-déjeuner|petit déjeuner|frühstück'],
+  ['brunch', 'brunch'],
+  ['lunch', 'lunch|déjeuner|dejeuner|mittagessen'],
+  ['dinner', 'dinner|supper|dîner|diner|restaurant|abendessen'],
+  ['coffee', 'coffee|café|cafe|espresso|kaffee'],
+  ['bbq', 'bbq|barbecue|barbeque|grill'],
+  ['drinks', 'drinks|cocktail|cocktails|happy hour|apéro|apero|pub'],
+  ['beer', 'beer|beers|bière|biere|brewery'],
+  ['cooking', 'cook|cooking|baking|bake|cuisine'],
+  ['yoga', 'yoga|pilates'],
+  ['meditation', 'meditate|meditation|mindfulness'],
+  ['gym', 'gym|workout|work out|fitness|weights|crossfit|lifting'],
+  ['running', 'run|running|jog|jogging|marathon|course à pied'],
+  ['cycling', 'cycling|bike|biking|vélo|velo'],
+  ['billiard', 'billiard|billiards|pool table|snooker'],
+  ['swimming', 'swim|swimming|pool|piscine|natation'],
+  ['hiking', 'hike|hiking|trek|trekking|randonnée|randonnee|wandern'],
+  ['tennis', 'tennis'],
+  ['pingpong', 'ping pong|ping-pong|table tennis'],
+  ['badminton', 'badminton'],
+  ['golf', 'golf'],
+  ['basketball', 'basketball'],
+  ['americanfootball', 'american football|nfl|super bowl'],
+  ['soccer', 'soccer|football|futsal'],
+  ['baseball', 'baseball'],
+  ['volleyball', 'volleyball'],
+  ['bowling', 'bowling'],
+  ['boxing', 'boxing|boxe|kickboxing'],
+  ['climbing', 'climbing|bouldering|escalade'],
+  ['skiing', 'ski|skiing|snowboard|snowboarding'],
+  ['sailing', 'sail|sailing|voile'],
+  ['dancing', 'dance|dancing|salsa|danse'],
+  ['art', 'art|painting|drawing|museum|gallery|exhibition|musée|musee'],
+  ['learninstrument', 'piano|guitar|violin|music lesson|instrument'],
+  ['learnlanguage', 'language class|language lesson|duolingo'],
+  ['code', 'code|coding|programming|hackathon'],
+  ['haircut', 'haircut|barber|coiffeur|hairdresser'],
+  ['dentist', 'dentist|dental|dentiste'],
+  ['massage', 'massage|spa'],
+  ['cleaning', 'clean|cleaning|chores|ménage|menage'],
+  ['carmaintenance', 'car service|car repair|mechanic|oil change|garage'],
+  ['repair', 'repair|plumber|electrician'],
+  ['planmyday', 'planning|plan my day|plan the week|weekly review'],
+].map(([img, words]) => [img, new RegExp(`(^|[^\\p{L}])(${words})(?=$|[^\\p{L}])`, 'iu')]);
+
+/** The Google Calendar illustration for an event title, or '' when none matches. */
+export function flairFor(title) {
+  const t = String(title || '');
+  return FLAIRS.find(([, re]) => re.test(t))?.[0] || '';
+}
+
+export const flairUrl = (img) =>
+  `https://ssl.gstatic.com/tmly/f8944938hffheth4ew890ht4i8/flairs/xxhdpi/img_${img}.jpg`;
+
+/**
+ * A Calendar API patch for an existing event from the edit form (only what changed), or {error}.
+ * form: {title, location, description, startDate, endDate} plus {startTime, endTime} for timed events.
+ * For all-day events endDate is the last day (inclusive).
+ */
+export function buildEventPatch(form, event, timeZone) {
+  const patch = {};
+  const title = form.title.trim();
+  if (!title) return { error: 'Add a title.' };
+  if (title !== event.title) patch.summary = title;
+  if (form.location !== event.details.location) patch.location = form.location;
+  if (form.description !== undefined && form.description !== null) patch.description = form.description;
+  if (!form.startDate || !form.endDate) return { error: 'Pick the dates.' };
+  if (event.allDay) {
+    if (form.endDate < form.startDate) return { error: 'The end date is before the start date.' };
+    const end = addDays(form.endDate, 1);
+    if (form.startDate !== ymd(event.start) || end !== ymd(event.end)) {
+      patch.start = { date: form.startDate };
+      patch.end = { date: end };
+    }
+  } else {
+    const st = parseTime(form.startTime);
+    const et = parseTime(form.endTime);
+    if (!st || !et) return { error: 'Use times like 09:00.' };
+    const start = new Date(`${form.startDate}T${st}:00`);
+    const end = new Date(`${form.endDate}T${et}:00`);
+    if (end <= start) return { error: 'The end is before the start.' };
+    if (start.getTime() !== event.start.getTime() || end.getTime() !== event.end.getTime()) {
+      patch.start = { dateTime: `${form.startDate}T${st}:00`, timeZone };
+      patch.end = { dateTime: `${form.endDate}T${et}:00`, timeZone };
+    }
+  }
+  return { patch };
 }
 
 function occurrenceIntervals(row) {
