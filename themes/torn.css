@@ -82,17 +82,17 @@ body { font-size: 15px; }
 
 /* Each square is laid down by hand at its own angle. Calendar and Time blocks tilt least,
    so dragging onto the calendar stays within a few pixels. */
-.panel.habits { --paper: #fffef8; rotate: -1.1deg; }
-.panel.distractions { --paper: #fbf6e9; rotate: .9deg; }
+.panel.habits { --paper: #fffef8; rotate: -.5deg; }
+.panel.distractions { --paper: #fbf6e9; rotate: .4deg; }
 .panel.tasks {
   --paper:
     linear-gradient(rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 16px 16px,
     linear-gradient(90deg, rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 16px 16px,
     #fffef8;                         /* graph paper */
-  rotate: -.6deg;
+  rotate: -.3deg;
 }
-.panel.entry { --paper: #fdfaf0; rotate: .3deg; }
-.panel.agenda { --paper: #fffef8; rotate: -.25deg; }
+.panel.entry { --paper: #fdfaf0; rotate: .15deg; }
+.panel.agenda { --paper: #fffef8; rotate: -.1deg; }
 
 /* The paper and its shadow are two torn layers behind the panel's content. */
 .panel, .capture-box { isolation: isolate; padding: 18px 16px 16px; }
