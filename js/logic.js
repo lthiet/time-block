@@ -306,28 +306,25 @@ export function buildEventPayload(row, timeZone) {
 }
 
 /**
- * Assign side-by-side lanes to overlapping items (for the agenda timeline).
- * Items need numeric `s` and `e` (minutes). Mutates items with `lane` and `lanes`.
+ * Calendar layout for timed items ({s, e} in minutes), the way Google and Apple Calendar draw overlaps:
+ * items that start within `near` minutes of each other split the width side by side; an item that starts
+ * later, inside an earlier one, is indented and drawn over it, so the earlier title stays readable above it.
+ * Sets `left` and `width` (percent of the day column) and `depth` (stacking order) on each item.
  */
-export function assignLanes(items) {
+export function layoutOverlaps(items, { near = 30, indent = 18, maxIndent = 54 } = {}) {
   const sorted = [...items].sort((a, b) => a.s - b.s || b.e - a.e);
-  let cluster = [];
-  let clusterEnd = -Infinity;
-  const flush = () => {
-    const n = Math.max(0, ...cluster.map((i) => i.lane + 1));
-    cluster.forEach((i) => { i.lanes = n; });
-    cluster = [];
-  };
+  const groups = []; // items drawn side by side: {s, depth, members}
   for (const it of sorted) {
-    if (it.s >= clusterEnd && cluster.length) flush();
-    const used = new Set(cluster.filter((c) => c.e > it.s).map((c) => c.lane));
-    let lane = 0;
-    while (used.has(lane)) lane++;
-    it.lane = lane;
-    cluster.push(it);
-    clusterEnd = Math.max(clusterEnd, it.e);
+    const under = groups.filter((g) => g.members.some((m) => m.e > it.s));
+    const join = under.filter((g) => it.s - g.s < near).at(-1);
+    if (join) join.members.push(it);
+    else groups.push({ s: it.s, depth: under.length ? 1 + Math.max(...under.map((g) => g.depth)) : 0, members: [it] });
   }
-  if (cluster.length) flush();
+  for (const g of groups) {
+    const left = Math.min(g.depth * indent, maxIndent);
+    const width = (100 - left) / g.members.length;
+    g.members.forEach((m, k) => Object.assign(m, { left: left + k * width, width, depth: g.depth }));
+  }
   return items;
 }
 

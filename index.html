@@ -5,20 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Life Tracker</title>
   <meta name="description" content="Plan time blocks in Google Calendar, track tasks and habits, and log distractions.">
-  <meta name="theme-color" content="#ffffff">
-  <link rel="icon" href="icon.svg?v=2" type="image/svg+xml">
+  <meta name="theme-color" content="#ffd200">
+  <link rel="icon" href="icon.svg?v=5" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=26">
+  <link rel="stylesheet" href="styles.css?v=36">
+  <link rel="stylesheet" id="skin" href="themes/construction.css?v=8">
+  <script>
+    // Apply the saved skin before first paint; keep the pattern and the version (?v=) in sync with js/skin.js.
+    try {
+      const s = localStorage.getItem('tb.skin');
+      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=8`;
+    } catch {}
+  </script>
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=23"></script>
+  <script type="module" src="js/app.js?v=27"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <img src="icon.svg?v=2" alt="" width="22" height="22">
+      <img src="icon.svg?v=5" alt="" width="22" height="22">
       <span>Life Tracker</span>
     </div>
     <div class="datebar" role="group" aria-label="Planning date">
@@ -29,6 +36,7 @@
       <button type="button" class="chip-btn" id="tomorrowBtn">Tomorrow</button>
     </div>
     <div class="account">
+      <label class="skin-picker"><span>Style</span><select id="skinSelect"></select></label>
       <span id="accountLabel" class="muted"></span>
       <button type="button" class="btn" id="signInBtn">Sign in with Google</button>
       <button type="button" class="btn ghost" id="signOutBtn" hidden>Sign out</button>
@@ -83,6 +91,7 @@
 
     <div class="stack">
       <section class="panel tasks" aria-label="Tasks">
+        <h2 class="panel-title">Tasks</h2>
         <div class="tasks-head">
           <input type="text" id="newTask" placeholder="+ Add a task (Enter)" aria-label="New task" autocomplete="off">
           <div id="taskSync" class="task-sync" role="status"></div>
@@ -91,6 +100,7 @@
       </section>
 
       <section class="panel entry" aria-label="Time blocks">
+        <h2 class="panel-title">Time blocks</h2>
         <details class="settings" id="settings">
           <summary>
             <span>Save to <strong id="targetSummary">—</strong></span>

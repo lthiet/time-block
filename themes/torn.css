@@ -1,0 +1,167 @@
+/* Torn paper: squares of paper torn from a pad and laid on ruled notebook paper. Straight pen lines, handwriting, yellow highlighter. */
+@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Courier+Prime&display=swap");
+
+:root {
+  --pen: #2b2b2b;
+  --blue-pen: #2f5fb3;
+  --red-pen: #d9472b;
+  --highlighter: #fff04a;
+  --paper: #fffef8;                  /* each panel picks its own paper below */
+  /* Jagged edges, tiled along each side of a torn square (masks, so only their shape matters). */
+  --tear-top: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 10' preserveAspectRatio='none'%3E%3Cpolygon points='0,6.3 3.9,2.7 4.6,1.6 5.5,1.4 6.4,2.8 6.7,6.6 8.1,1.9 10.7,4.9 12.8,5.3 18.4,3.3 26.3,4.6 29.5,1 31.9,0.9 34.1,2 34.8,5.6 40.6,3.7 42.8,2.9 46,4.9 49.9,3.9 51.8,2.7 65.5,6.5 74.9,5.7 77.1,2.3 80,6.3 80,10 0,10'/%3E%3C/svg%3E");
+  --tear-bottom: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 10' preserveAspectRatio='none'%3E%3Cpolygon points='0,3.3 4.1,5.9 10.2,4.5 12.9,9 23.5,4.2 25.5,4.6 33.6,2.1 36.6,3.3 39.1,7.4 42,6.6 45.7,4.5 45.8,9.3 46.2,6 47.4,8.2 53.1,8.6 55.2,9.1 57.9,3.7 60.1,8.5 60.6,7.6 66.5,6.6 69.3,3 69.3,8.9 77.5,6.1 80,3.3 80,0 0,0'/%3E%3C/svg%3E");
+  --tear-left: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 80' preserveAspectRatio='none'%3E%3Cpolygon points='4.6,0 5.1,1.3 5.6,12.8 0.9,14.7 7.2,19.1 6.3,19.2 7.1,21.5 6.5,22.7 3.4,29 3.5,29.8 1.3,33.4 5.3,33.7 1,38.8 1,43.9 2.1,45.2 1.7,47 3.1,54.9 0.9,64.9 0.5,68.4 1.6,69.9 1.3,70 3.2,75.3 0.7,75.7 4.6,80 10,80 10,0'/%3E%3C/svg%3E");
+  --tear-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 80' preserveAspectRatio='none'%3E%3Cpolygon points='7.9,0 5.5,2.8 2.2,7.7 3,9 4.3,10.6 7.5,12.4 6.7,12.6 8.2,13.6 3.7,20.7 5.5,21.7 3.7,27.7 7,28.1 7.8,29.4 3.4,37.3 2.1,38.7 3.1,42.2 3.5,43.4 3.4,48.9 4,65.7 7.8,67.2 5.6,69.2 6.8,75.2 9.3,78.5 7.9,80 0,80 0,0'/%3E%3C/svg%3E");
+  --torn-mask:
+    var(--tear-top) left top / 80px 10px repeat-x,
+    var(--tear-bottom) left bottom / 80px 10px repeat-x,
+    var(--tear-left) left top / 10px 80px repeat-y,
+    var(--tear-right) right top / 10px 80px repeat-y,
+    linear-gradient(#000, #000) center / calc(100% - 18px) calc(100% - 18px) no-repeat;
+
+  --bg: #f3efe4;
+  --page-bg:
+    linear-gradient(90deg, transparent 54px, #f0a4a4 54px 56px, transparent 56px),
+    repeating-linear-gradient(transparent 0 27px, #bcd0ec 27px 28px),
+    #f3efe4;
+  --bar: #f3efe4;
+  --bar-text: var(--pen);
+  --surface: transparent;
+  --surface-solid: #fffef8;
+  --surface-2: rgb(43 43 43 / .04);
+  --field: #ffffff;
+  --ink: var(--pen);
+  --border: var(--pen);
+  --border-strong: var(--pen);
+  --line: rgb(47 95 179 / .14);
+  --text: var(--pen);
+  --muted: #625e55;
+  --accent: var(--blue-pen);
+  --accent-ink: #ffffff;
+  --accent-2: var(--red-pen);
+  --accent-2-ink: #ffffff;
+  --accent-soft: rgb(255 240 74 / .45);
+  --info: var(--blue-pen);
+  --info-ink: #ffffff;
+  --label: var(--blue-pen);
+  --done: var(--pen);
+  --sheet: #fffef8;
+  --sheet: linear-gradient(rgb(47 95 179 / .12) 1px, transparent 1px) 0 calc(var(--hour) / 2) / 100% var(--hour), #fffef8;
+  --today-col: rgb(255 240 74 / .22);
+  --now: var(--red-pen);
+  --overlay: rgb(243 239 228 / .75);
+
+  --radius: 0;
+  --radius-sm: 2px;
+  --bw: 0px;
+  --bw-sm: 1.5px;
+  --panel-shadow: none;
+  --ctl-shadow: 2px 2px 0 var(--pen);
+  --ctl-shadow-hover: 3px 3px 0 var(--pen);
+  --ctl-lift: translate(-1px, -1px);
+  --ctl-press: translate(2px, 2px);
+  --card-hover: 2px 2px 0 var(--pen);
+  --focus-ring: 0 0 0 3px rgb(255 240 74 / .9);
+  --gap: 22px;
+
+  --font: "Patrick Hand", "Comic Sans MS", cursive;
+  --font-display: "Caveat", "Patrick Hand", cursive;
+  --font-mono: "Courier Prime", "Courier New", monospace;
+  --font-term: var(--font);
+  --term-size: 15px;
+  --title-font: 700 30px/.9 var(--font-display);
+  --brand-font: 700 30px/1 var(--font-display);
+  --agenda-title-font: 700 28px/1 var(--font-display);
+  --btn-font: 400 15px var(--font);
+  --label-font: 400 13px var(--font);
+}
+
+body { font-size: 15px; }
+.topbar { border-bottom: 2px solid var(--pen); }
+.layout { padding-top: 22px; }
+
+/* Each square is laid down by hand at its own angle. Calendar and Time blocks tilt least,
+   so dragging onto the calendar stays within a few pixels. */
+.panel.habits { --paper: #fffef8; rotate: -1.1deg; }
+.panel.distractions { --paper: #fbf6e9; rotate: .9deg; }
+.panel.tasks {
+  --paper:
+    linear-gradient(rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 16px 16px,
+    linear-gradient(90deg, rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 16px 16px,
+    #fffef8;                         /* graph paper */
+  rotate: -.6deg;
+}
+.panel.entry { --paper: #fdfaf0; rotate: .3deg; }
+.panel.agenda { --paper: #fffef8; rotate: -.25deg; }
+
+/* The paper and its shadow are two torn layers behind the panel's content. */
+.panel, .capture-box { isolation: isolate; padding: 18px 16px 16px; }
+.panel::before, .panel::after, .capture-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask: var(--torn-mask);
+  mask: var(--torn-mask);
+}
+.panel::before { z-index: -1; background: var(--paper); }
+.panel::after { z-index: -2; background: rgb(60 50 30 / .2); translate: 2px 4px; }
+.settings { margin-inline: -16px; }
+
+/* Yellow highlighter behind headings. */
+.panel-title, .brand span { width: fit-content; padding-inline: 4px; background: linear-gradient(100deg, transparent 2%, var(--highlighter) 4% 94%, transparent 97%) 0 70% / 100% 44% no-repeat; }
+.panel-title .badge { background: var(--pen); color: #fff; }
+.agenda-head h2 { color: var(--pen); }
+.tl-dayhead.today .dom { background: var(--highlighter); color: var(--pen); }
+.h-stat.streak, .lane-head .count, .dist-day-head .count, .dist-done-toggle .count { background: var(--highlighter); color: var(--pen); }
+
+.btn, .chip-btn, .view-toggle { background: #ffffff; }
+.btn.primary { background: var(--red-pen); color: #fff; }
+.lane, .dist-day { background: transparent; }
+.lane-head, .dist-day-head { background: transparent; font: 400 14px var(--font); letter-spacing: .02em; }
+.task-card, .habit, .dist { background: #ffffff; }
+.task-card, .habit, .dist, .task-card .t-title, .h-title-input { font-size: 14px; }
+.settings, .actionbar, .legend, .habit-map, .shortcut-setting { border-color: rgb(43 43 43 / .35); }
+.tl-head { background: #fffef8; }
+
+/* Capture popup: one more torn square. */
+.capture-box { background: transparent; border: 0; box-shadow: none; }
+.capture-box::after { z-index: -1; background: #fffef8; }
+.capture-box::before { content: "Note to self:"; display: block; font: 700 24px var(--font-display); color: var(--blue-pen); margin-bottom: 4px; width: fit-content; background: linear-gradient(100deg, transparent 2%, var(--highlighter) 4% 94%, transparent 97%) 0 70% / 100% 44% no-repeat; }
+
+/* ---------- Calendar: a planner page ---------- */
+/* Ruled hour lines with fainter half hours, a red margin, pencil day dividers, handwritten days and hours. */
+.tl-head { background: #fffef8; border-bottom: 1.5px solid rgb(43 43 43 / .5); }
+.tl-dayhead .dow { font: 400 13px var(--font); letter-spacing: .02em; text-transform: none; }
+.tl-dayhead .dom { font: 700 20px/1 var(--font-display); }
+.tl-dayhead.today { box-shadow: none; }
+.tl-body { border-left: 2px solid #f0a4a4; }
+.tl-col { border-left-color: rgb(43 43 43 / .22); }
+.timeline .hour { border-top-color: rgb(47 95 179 / .35); }
+.timeline .hour span { font: 400 14px var(--font); top: -9px; color: var(--red-pen); }
+
+/* Events are scraps of coloured paper with torn top and bottom edges. No two are torn alike:
+   the tear's offset and depth vary with the event's place in its column. */
+.blk, .allday-chip {
+  --tear-x: 0px;
+  --tear-h: 4px;
+  font-family: var(--font);
+  color: var(--pen);
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--c) 38%, #fffef8);
+  -webkit-mask: var(--tear-top) var(--tear-x) top / 40px var(--tear-h) repeat-x, var(--tear-bottom) calc(var(--tear-x) * -1.7) bottom / 40px var(--tear-h) repeat-x, linear-gradient(#000, #000) center / 100% calc(100% - var(--tear-h) * 1.5) no-repeat;
+  mask: var(--tear-top) var(--tear-x) top / 40px var(--tear-h) repeat-x, var(--tear-bottom) calc(var(--tear-x) * -1.7) bottom / 40px var(--tear-h) repeat-x, linear-gradient(#000, #000) center / 100% calc(100% - var(--tear-h) * 1.5) no-repeat;
+}
+.blk:nth-child(5n+2), .allday-chip:nth-child(5n+2) { --tear-x: 9px; --tear-h: 5px; }
+.blk:nth-child(5n+3), .allday-chip:nth-child(5n+3) { --tear-x: 18px; --tear-h: 3px; }
+.blk:nth-child(5n+4), .allday-chip:nth-child(5n+4) { --tear-x: 27px; --tear-h: 6px; }
+.blk:nth-child(5n), .allday-chip:nth-child(5n) { --tear-x: 34px; --tear-h: 4.5px; }
+.blk { padding-top: 5px; }
+.blk b { font-weight: 400; font-size: 13px; }
+.blk .blk-time { font: 11px var(--font); opacity: .75; }
+@container (max-width: 64px) { .blk b { font-size: 11px; line-height: 1.1; } }
+.blk.draft { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--c) 45%, #fffef8) 0 5px, color-mix(in srgb, var(--c) 25%, #fffef8) 5px 10px); }
+.blk:hover { box-shadow: none; background: color-mix(in srgb, var(--c) 52%, #fffef8); }
+/* A scrap laid over an earlier one gets a pale edge on its left (inset, since the torn mask clips anything outside it). */
+.blk.stacked { box-shadow: inset 2px 0 0 #fffef8; }
