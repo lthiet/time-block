@@ -595,10 +595,10 @@ export function heatmapWeeks(today, weeks) {
 
 // ---------------------------------------------------------------- distractions
 
-/** Entries grouped by local day, newest day first; each day in the order things happened. */
+/** Entries grouped by local day, newest day first; newest entry first inside each day too. */
 export function groupByDay(entries) {
   const days = new Map();
-  for (const e of [...entries].sort((x, y) => x.at - y.at)) {
+  for (const e of [...entries].sort((x, y) => y.at - x.at)) {
     const d = ymd(new Date(e.at));
     if (!days.has(d)) days.set(d, []);
     days.get(d).push(e);
