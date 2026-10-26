@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=24">
+  <link rel="stylesheet" href="styles.css?v=25">
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=21"></script>
+  <script type="module" src="js/app.js?v=22"></script>
 </head>
 <body>
   <header class="topbar">
@@ -45,8 +45,12 @@
         <h2 class="panel-title">Habits <span class="badge" id="habitsBadge"></span></h2>
         <div class="tasks-head">
           <input type="text" id="newHabit" placeholder="+ Add a habit (Enter)" aria-label="New habit" autocomplete="off">
+          <div class="view-toggle" id="newHabitKind" role="group" aria-label="Kind of habit">
+            <button type="button" data-kind="do" class="active" aria-pressed="true" title="Tick the days you do it; a day without a tick counts as broken">Do</button>
+            <button type="button" data-kind="avoid" aria-pressed="false" title="Tick the days you slip; a day without a tick counts as kept">Avoid</button>
+          </div>
         </div>
-        <p id="habitsEmpty" class="muted small empty">Add a habit, then check in every day. A day without a check-in counts as broken.</p>
+        <p id="habitsEmpty" class="muted small empty">Add a habit, then tick it every day. A “do” habit is broken on a day without a tick; an “avoid” habit is broken on a day you tick it.</p>
         <div id="habitMapWrap" class="habit-map" hidden>
           <div id="habitMap"></div>
           <div id="habitMapLabel" class="muted small habit-map-label"></div>
