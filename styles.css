@@ -731,7 +731,7 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 .dist-list { display: grid; align-content: start; gap: 6px; }
 .dist-day { border: 1px solid var(--border); background: var(--surface-2); }
 .dist-day-head { display: flex; gap: 6px; align-items: center; padding: 3px 8px; border-bottom: 1px solid var(--border); font: 600 10px var(--font-mono); text-transform: uppercase; letter-spacing: .14em; color: var(--muted); }
-.dist-day-head .count, .dist-done-toggle .count { padding: 0 6px; background: var(--accent-soft); color: var(--accent); }
+.dist-day-head .count, .dist-done-toggle .count, .dist-history-toggle .count { padding: 0 6px; background: var(--accent-soft); color: var(--accent); }
 .dist-items { list-style: none; margin: 0; padding: 4px; display: grid; gap: 2px; }
 .dist {
   display: flex;
@@ -752,9 +752,8 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 .d-note { color: var(--muted); cursor: text; white-space: pre-wrap; overflow-wrap: anywhere; }
 .d-note-input { padding: 1px 4px; }
 .dist-done-toggle, .dist-history-toggle { border: 1px solid var(--border); }
-.dist-history-toggle .count { padding: 0 6px; background: var(--accent-soft); color: var(--accent); }
 .dist-history { display: grid; gap: 4px; padding: 6px 8px; border: 1px solid var(--border); background: var(--surface-2); }
-.hm-cell.dist-cell { background: color-mix(in srgb, var(--accent) calc(25% + var(--k, 0) * 75%), var(--surface-2)); outline-color: transparent; }
+.hm-cell.dist-cell { background: color-mix(in srgb, var(--bad) calc(20% + var(--k, 0) * 80%), var(--surface-solid)); outline-color: transparent; }
 .hm-cell.dist-cell.zero { background: var(--surface-2); outline-color: var(--line); }
 .hm-cell.dist-cell.today { outline: 2px solid var(--accent); outline-offset: -2px; }
 .hm-cell.picked { outline: 2px solid var(--accent-2); outline-offset: -2px; }
