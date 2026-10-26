@@ -408,13 +408,13 @@ test('heatmapWeeks ends with the week holding today, Monday first', () => {
   assert.equal(w[0][0], '2026-09-07');
 });
 
-test('groupByDay: newest day first, chronological inside a day', () => {
+test('groupByDay: newest first, across and inside days', () => {
   const at = (s) => new Date(s).getTime();
   const g = groupByDay([
     { id: 'a', at: at('2026-09-26T10:00') }, { id: 'b', at: at('2026-09-27T09:00') }, { id: 'c', at: at('2026-09-26T08:00') },
   ]);
   assert.deepEqual(g.map((d) => d.date), ['2026-09-27', '2026-09-26']);
-  assert.deepEqual(g[1].items.map((e) => e.id), ['c', 'a']);
+  assert.deepEqual(g[1].items.map((e) => e.id), ['a', 'c']);
 });
 
 test('comboFromEvent uses the physical key', () => {
