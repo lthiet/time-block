@@ -11,12 +11,13 @@ export const SKINS = [
   { id: 'terminal', name: 'Terminal' },
   { id: 'neumorphism', name: 'Soft UI' },
   { id: 'sketch', name: 'Sketchbook' },
+  { id: 'torn', name: 'Torn paper' },
   { id: 'aero', name: 'Aero' },
   { id: 'midnight', name: 'Midnight' },
 ];
 export const DEFAULT_SKIN = 'construction';
 export const SKIN_KEY = 'tb.skin';
-export const SKIN_VERSION = 3; // bump when any themes/*.css changes, to bust caches
+export const SKIN_VERSION = 4; // bump when any themes/*.css changes, to bust caches
 
 export function normalizeSkin(id) {
   return SKINS.some((s) => s.id === id) ? id : DEFAULT_SKIN;

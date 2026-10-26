@@ -507,7 +507,7 @@ input[type=checkbox] { accent-color: var(--accent-2); }
 .task-sync { margin-top: 4px; font: calc(var(--term-size) - 1px) var(--font-term); color: var(--muted); }
 .task-sync.error { color: var(--bad); }
 .task-sync .linkish { border: 0; padding: 0; background: none; font: inherit; color: var(--label); text-decoration: underline; cursor: pointer; }
-.lanes { display: grid; align-content: start; gap: 10px; }
+.lanes { display: grid; grid-auto-rows: max-content; align-content: start; gap: 10px; } /* rows keep their content height; the board scrolls */
 .lane {
   border: var(--bw-sm) solid var(--border);
   border-radius: var(--radius-sm);
@@ -718,7 +718,7 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 
 /* ---------- Distractions ---------- */
 .dist-hint { margin-top: 4px; }
-.dist-list { display: grid; align-content: start; gap: 8px; }
+.dist-list { display: grid; grid-auto-rows: max-content; align-content: start; gap: 8px; }
 .dist-day { border: var(--bw-sm) solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden; }
 .dist-day-head { display: flex; gap: 6px; align-items: center; padding: 3px 8px; border-bottom: var(--bw-sm) solid var(--border); background: var(--surface-solid); font: 700 10px var(--font-mono); text-transform: uppercase; letter-spacing: .14em; color: var(--text); }
 .dist-day-head .count, .dist-done-toggle .count { font: calc(var(--term-size) - 1px) var(--font-term); letter-spacing: 0; padding: 0 6px; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-ink); }
