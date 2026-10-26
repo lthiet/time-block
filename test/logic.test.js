@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseTime, resolveDate, validateRow, findConflicts,
-  normalizeEvent, buildEventPayload, assignLanes, rowsRange, addMinutes,
+  normalizeEvent, buildEventPayload, layoutOverlaps, rowsRange, addMinutes,
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
   stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
   tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit, isAvoid,
@@ -101,11 +101,20 @@ test('buildEventPayload', () => {
   assert.equal(p.extendedProperties.private.source, 'time-block-app');
 });
 
-test('assignLanes places overlapping items side by side', () => {
-  const items = [{ s: 0, e: 60 }, { s: 30, e: 90 }, { s: 60, e: 120 }, { s: 200, e: 210 }];
-  assignLanes(items);
-  assert.deepEqual(items.map((i) => i.lane), [0, 1, 0, 0]);
-  assert.deepEqual(items.map((i) => i.lanes), [2, 2, 2, 1]);
+test('layoutOverlaps splits items that start together and stacks later ones over earlier ones', () => {
+  const pos = (items) => items.map(({ left, width, depth }) => [left, width, depth]);
+  // Alone: full width.
+  assert.deepEqual(pos(layoutOverlaps([{ s: 0, e: 60 }])), [[0, 100, 0]]);
+  // Start within 30 minutes of each other: side by side.
+  assert.deepEqual(pos(layoutOverlaps([{ s: 600, e: 660 }, { s: 615, e: 700 }])), [[0, 50, 0], [50, 50, 0]]);
+  // Starts an hour later inside the first: indented and drawn on top; the first keeps the full width.
+  assert.deepEqual(pos(layoutOverlaps([{ s: 600, e: 720 }, { s: 660, e: 700 }])), [[0, 100, 0], [18, 82, 1]]);
+  // Nested twice, then a separate item after the cluster.
+  assert.deepEqual(pos(layoutOverlaps([{ s: 0, e: 300 }, { s: 60, e: 240 }, { s: 120, e: 180 }, { s: 400, e: 420 }])),
+    [[0, 100, 0], [18, 82, 1], [36, 64, 2], [0, 100, 0]]);
+  // Two items starting together inside a long one share the indented space.
+  assert.deepEqual(pos(layoutOverlaps([{ s: 0, e: 300 }, { s: 120, e: 180 }, { s: 125, e: 200 }])),
+    [[0, 100, 0], [18, 41, 1], [59, 41, 1]]);
 });
 
 test('addMinutes clamps to end of day', () => {

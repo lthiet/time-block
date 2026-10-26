@@ -160,8 +160,8 @@ body { font-size: 15px; }
 .blk { padding-top: 5px; }
 .blk b { font-weight: 400; font-size: 13px; }
 .blk .blk-time { font: 11px var(--font); opacity: .75; }
+@container (max-width: 64px) { .blk b { font-size: 11px; line-height: 1.1; } }
 .blk.draft { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--c) 45%, #fffef8) 0 5px, color-mix(in srgb, var(--c) 25%, #fffef8) 5px 10px); }
 .blk:hover { box-shadow: none; background: color-mix(in srgb, var(--c) 52%, #fffef8); }
-/* Overlaps: red pen around the scrap (inset, since the torn mask clips anything outside it). */
-.blk.overlap { box-shadow: inset 0 0 0 2px var(--red-pen); }
-.blk.overlap::after { top: 8px; background: var(--red-pen); font-size: 13px; }
+/* A scrap laid over an earlier one gets a pale edge on its left (inset, since the torn mask clips anything outside it). */
+.blk.stacked { box-shadow: inset 2px 0 0 #fffef8; }

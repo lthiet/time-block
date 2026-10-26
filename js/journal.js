@@ -3,7 +3,7 @@
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as drive from './drive.js';
-import * as L from './logic.js?v=23'; // bump with app.js?v= in index.html
+import * as L from './logic.js?v=24'; // bump with app.js?v= in index.html
 
 const $ = (sel) => document.querySelector(sel);
 const HABITS_KEY = 'tb.habits';

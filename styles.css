@@ -428,7 +428,7 @@ input[type=checkbox] { accent-color: var(--accent-2); }
   margin-top: -1px;
   background: var(--now);
   pointer-events: none;
-  z-index: 5;
+  z-index: 50;
 }
 .timeline .now::before {
   content: "";
@@ -458,28 +458,20 @@ input[type=checkbox] { accent-color: var(--accent-2); }
   line-height: 1.25;
   overflow: hidden;
   cursor: default;
-  z-index: 1;
+  z-index: calc(1 + var(--depth, 0) * 2); /* items indented over earlier ones sit on top */
+  container-type: inline-size;
   transition: box-shadow .1s;
 }
-.blk:hover { box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--c) 70%, transparent); z-index: 3; }
-/* Items that share their time with another sit side by side; a badge makes the clash obvious. */
-.blk.overlap { box-shadow: inset 0 0 0 2px var(--bad); }
-.blk.overlap::after {
-  content: "!";
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 15px;
-  height: 15px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--bad);
-  color: #fff;
-  font: 700 11px/1 var(--font);
-}
-.blk b { display: block; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.blk:hover { box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--c) 70%, transparent); z-index: 30; }
+/* A thin gap in the page colour separates an item from the one it is drawn over. */
+.blk.stacked { box-shadow: 0 0 0 1.5px var(--surface-solid); }
+.blk b { display: block; font-weight: 700; overflow-wrap: break-word; } /* wraps rather than cuts off when side by side */
 .blk .blk-time { display: block; font: 10px var(--font-mono); opacity: .85; white-space: nowrap; overflow: hidden; }
+/* Narrow blocks (side by side in week view): smaller title, time left to the tooltip. */
+@container (max-width: 64px) {
+  .blk b { font-size: 9.5px; line-height: 1.15; letter-spacing: -.01em; }
+  .blk .blk-time { display: none; }
+}
 .allday-chip { display: block; font-size: 11px; font-weight: 700; padding: 1px 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-allday .allday-chip { display: inline-block; }
 
@@ -487,7 +479,7 @@ input[type=checkbox] { accent-color: var(--accent-2); }
   --c: var(--new);
   border: 2px dashed var(--c);
   border-left: 4px solid var(--c);
-  z-index: 2;
+  z-index: calc(2 + var(--depth, 0) * 2);
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -495,7 +487,7 @@ input[type=checkbox] { accent-color: var(--accent-2); }
 .blk.draft.conflict, .blk.draft.task.conflict { --c: var(--warn); }
 .blk.draft.dragging {
   cursor: grabbing;
-  z-index: 4;
+  z-index: 40;
   background: color-mix(in srgb, var(--c) 42%, var(--surface-solid));
   box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--c) 70%, transparent);
 }
@@ -509,7 +501,7 @@ input[type=checkbox] { accent-color: var(--accent-2); }
   border: 2px dashed var(--c);
   border-left: 4px solid var(--c);
   pointer-events: none;
-  z-index: 4;
+  z-index: 40;
 }
 .timeline.dragging { user-select: none; cursor: grabbing; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; padding-top: 8px; border-top: var(--bw-sm) solid var(--border); font-size: 11px; color: var(--muted); }

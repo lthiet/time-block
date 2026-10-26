@@ -2,8 +2,8 @@ import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION,
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as drive from './drive.js';
-import * as L from './logic.js?v=23'; // bump with app.js?v= in index.html
-import * as J from './journal.js?v=23';
+import * as L from './logic.js?v=24'; // bump with app.js?v= in index.html
+import * as J from './journal.js?v=24';
 import { initSkinPicker } from './skin.js?v=1';
 
 const $ = (sel) => document.querySelector(sel);
@@ -629,7 +629,7 @@ async function loadAgendaDay({ force = false } = {}) {
   if (seq === agendaLoadSeq) renderAgenda();
 }
 
-/** Timed items (existing events + new blocks) for one day, with side-by-side lanes. */
+/** Timed items (existing events + new blocks) for one day, laid out like a calendar app where they overlap. */
 function dayItems(date) {
   const events = state.dayCache.get(date)?.events || [];
   const dayStart = new Date(`${date}T00:00:00`).getTime();
@@ -641,7 +641,7 @@ function dayItems(date) {
     if (!L.occursOn(r, date) || L.validateRow({ ...r, title: r.title || 'x' }).length) continue;
     items.push({ kind: 'draft', row: r, s: toMins(r.start), e: toMins(r.end) });
   }
-  L.assignLanes(items);
+  L.layoutOverlaps(items);
   return { items, allDay: events.filter((e) => e.allDay) };
 }
 
@@ -650,26 +650,26 @@ function allDayChip(e) {
 }
 
 function blockEl(i, px) {
-  const width = 100 / i.lanes;
   const style = {
     top: `${px(i.s)}px`,
     height: `${Math.max(px(i.e) - px(i.s) - 1, 14)}px`,
-    left: `calc(${i.lane * width}% + 1px)`,
-    width: `calc(${width}% - 2px)`,
+    left: `calc(${i.left}% + 1px)`,
+    width: `calc(${i.width}% - 2px)`,
+    '--depth': i.depth,
   };
+  const stacked = i.depth ? ' stacked' : ''; // drawn over an earlier item
   const tall = i.e - i.s >= 30;
-  const overlap = i.lanes > 1 ? ' overlap' : ''; // shares its time with another item: shown side by side and flagged
   if (i.kind === 'event') {
     style['--c'] = i.ev.color || 'var(--muted)';
     const time = `${fmtTime(i.ev.start)}–${fmtTime(i.ev.end)}`;
-    return h('div', { class: `blk${overlap}`, style, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}${i.lanes > 1 ? '\nOverlaps another event' : ''}` },
+    return h('div', { class: `blk${stacked}`, style, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}` },
       h('b', {}, i.ev.title), tall ? h('span', { class: 'blk-time' }, time) : null);
   }
   const st = rowStatus(i.row).state;
   const dragging = drag?.moved && drag.rowId === i.row.id;
   const time = `${fmtHM(i.row.start)}–${fmtHM(i.row.end)}`;
   return h('div', {
-    class: `blk draft${isTaskRow(i.row) ? ' task' : ''}${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}${overlap}`,
+    class: `blk draft${isTaskRow(i.row) ? ' task' : ''}${st === 'conflict' && !i.row.force ? ' conflict' : ''}${dragging ? ' dragging' : ''}${stacked}`,
     style,
     'data-row-id': i.row.id,
     title: `${i.row.title || '(untitled)'}\n${time} · new ${isTaskRow(i.row) ? 'task' : 'block'}\nDrag to move · drag the bottom edge to resize`,
