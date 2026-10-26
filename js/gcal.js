@@ -80,6 +80,12 @@ export function insertEvent(calendarId, payload) {
   return api(`/calendars/${encodeURIComponent(calendarId)}/events`, { method: 'POST', body: payload });
 }
 
+export function patchEvent(calendarId, eventId, patch) {
+  return api(`/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, {
+    method: 'PATCH', body: patch,
+  });
+}
+
 export function deleteEvent(calendarId, eventId) {
   return api(`/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, {
     method: 'DELETE',

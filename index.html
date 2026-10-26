@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=37">
+  <link rel="stylesheet" href="styles.css?v=38">
   <link rel="stylesheet" id="skin" href="themes/construction.css?v=9">
   <script>
     // Apply the saved skin before first paint; keep the pattern and the version (?v=) in sync with js/skin.js.
@@ -20,7 +20,7 @@
     } catch {}
   </script>
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=28"></script>
+  <script type="module" src="js/app.js?v=29"></script>
 </head>
 <body>
   <header class="topbar">
@@ -166,6 +166,8 @@
       <div class="capture-foot muted small"><span id="captureNote"></span><span><kbd>Enter</kbd> log · <kbd>Esc</kbd> cancel</span></div>
     </div>
   </div>
+
+  <div id="evCard" class="ev-card" role="dialog" hidden></div>
 
   <template id="rowTpl">
     <li class="row">

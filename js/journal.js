@@ -1,9 +1,9 @@
 // Habits (daily check-ins with a heatmap) and the distraction log, shown as tabs next to the task board.
 // Both sync through their own file in the app's Google Drive folder, the same way tasks do.
 import * as auth from './auth.js';
-import * as gcal from './gcal.js';
+import * as gcal from './gcal.js?v=2'; // bump when gcal.js changes
 import * as drive from './drive.js';
-import * as L from './logic.js?v=24'; // bump with app.js?v= in index.html
+import * as L from './logic.js?v=25'; // bump with app.js?v= in index.html
 
 const $ = (sel) => document.querySelector(sel);
 const HABITS_KEY = 'tb.habits';
