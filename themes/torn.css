@@ -82,17 +82,18 @@ body { font-size: 15px; }
 
 /* Each square is laid down by hand at its own angle. Calendar and Time blocks tilt least,
    so dragging onto the calendar stays within a few pixels. */
-.panel.habits { --paper: #fffef8; rotate: -.5deg; }
-.panel.distractions { --paper: #fbf6e9; rotate: .4deg; }
+.panel.habits { --paper: #fffef8; rotate: -.5deg; --tape-x: 48%; --tape-rot: -3.4deg; }
+.panel.distractions { --paper: #fbf6e9; rotate: .4deg; --tape-x: 52%; --tape-rot: 2.3deg; }
 .panel.tasks {
   --paper:
     linear-gradient(rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 16px 16px,
     linear-gradient(90deg, rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 16px 16px,
     #fffef8;                         /* graph paper */
   rotate: -.3deg;
+  --tape-x: 49%; --tape-rot: 4.1deg;
 }
-.panel.entry { --paper: #fdfaf0; rotate: .15deg; }
-.panel.agenda { --paper: #fffef8; rotate: -.1deg; }
+.panel.entry { --paper: #fdfaf0; rotate: .15deg; --tape-x: 51.5%; --tape-rot: -1.2deg; }
+.panel.agenda { --paper: #fffef8; rotate: -.1deg; --tape-x: 50.5%; --tape-rot: 1.7deg; }
 
 /* The paper and its shadow are two torn layers behind the panel's content. */
 .panel, .capture-box { isolation: isolate; padding: 18px 16px 16px; }
@@ -107,6 +108,30 @@ body { font-size: 15px; }
 .panel::before { z-index: -1; background: var(--paper); }
 .panel::after { z-index: -2; background: rgb(60 50 30 / .2); translate: 2px 4px; }
 .settings { margin-inline: -16px; }
+
+/* A strip of translucent tape holds each square down across its top edge, its short ends torn off.
+   The square's pseudo-elements are taken by the paper, so the tape hangs off its first child. */
+.panel > :first-child::after, .capture-foot::after {
+  content: "";
+  position: absolute;
+  top: -11px;
+  left: var(--tape-x, 50%);
+  width: 96px;
+  height: 26px;
+  translate: -50% 0;
+  rotate: var(--tape-rot, -2deg);
+  pointer-events: none;
+  background:
+    linear-gradient(rgb(255 255 255 / .5), rgb(255 255 255 / 0) 45%, rgb(255 255 255 / .15)),
+    rgb(214 205 170 / .5);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .5), inset 0 -1px 0 rgb(120 105 70 / .18), 0 1px 3px rgb(60 50 30 / .22);
+  -webkit-mask: var(--tape-mask);
+  mask: var(--tape-mask);
+  --tape-mask:
+    conic-gradient(from 45deg at left, #000 90deg, transparent 0) left top / 4px 5px repeat-y,
+    conic-gradient(from -135deg at right, #000 90deg, transparent 0) right top / 4px 5px repeat-y,
+    linear-gradient(#000, #000) center / calc(100% - 7px) 100% no-repeat;
+}
 
 /* Yellow highlighter behind headings. */
 .panel-title, .brand span { width: fit-content; padding-inline: 4px; background: linear-gradient(100deg, transparent 2%, var(--highlighter) 4% 94%, transparent 97%) 0 70% / 100% 44% no-repeat; }
@@ -125,7 +150,7 @@ body { font-size: 15px; }
 .tl-head { background: #fffef8; }
 
 /* Capture popup: one more torn square. */
-.capture-box { background: transparent; border: 0; box-shadow: none; }
+.capture-box { background: transparent; border: 0; box-shadow: none; --tape-x: 49%; --tape-rot: -2.6deg; }
 .capture-box::after { z-index: -1; background: #fffef8; }
 .capture-box::before { content: "Note to self:"; display: block; font: 700 24px var(--font-display); color: var(--blue-pen); margin-bottom: 4px; width: fit-content; background: linear-gradient(100deg, transparent 2%, var(--highlighter) 4% 94%, transparent 97%) 0 70% / 100% 44% no-repeat; }
 
