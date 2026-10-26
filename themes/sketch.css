@@ -71,11 +71,12 @@ body { font-size: 15px; }
 .layout { padding-top: 24px; }
 
 /* Panels are sticky notes: no outline, a slightly darker curl at the bottom right, a strip of tape on top. */
-.panel.habits { --note: #fff27a; rotate: -.6deg; }
-.panel.distractions { --note: #ffc6d9; rotate: .4deg; }
-.panel.tasks { --note: #c9e7ff; rotate: .4deg; }
-.panel.entry { --note: #d3f5c6; }
-.panel.agenda { --note: #ffe2bd; }
+/* Each note is taped on by hand (the tape's angle and spot vary) and marked with a highlighter that stands out on its colour. */
+.panel.habits { --note: #fff27a; --hl: #ff8ad8; --tape-x: 46%; --tape-rot: -4deg; rotate: -.6deg; }
+.panel.distractions { --note: #ffc6d9; --hl: #5cf2ff; --tape-x: 30%; --tape-rot: 6deg; rotate: .4deg; }
+.panel.tasks { --note: #c9e7ff; --hl: #b8ff5c; --tape-x: 64%; --tape-rot: -7deg; rotate: .4deg; }
+.panel.entry { --note: #d3f5c6; --hl: #ffb15c; --tape-x: 54%; --tape-rot: 3deg; }
+.panel.agenda { --note: #ffe2bd; --hl: #f4ff3a; --tape-x: 22%; --tape-rot: -2deg; }
 .panel {
   background: linear-gradient(165deg, var(--note) 72%, color-mix(in srgb, var(--note) 86%, #000) 100%);
   padding-top: 16px;
@@ -84,18 +85,18 @@ body { font-size: 15px; }
   content: "";
   position: absolute;
   top: -11px;
-  left: 50%;
+  left: var(--tape-x, 50%);
   width: 96px;
   height: 22px;
   translate: -50% 0;
-  rotate: -2deg;
+  rotate: var(--tape-rot, -2deg);
   background: var(--tape);
   box-shadow: 0 1px 2px rgb(0 0 0 / .12);
   pointer-events: none;
 }
 
-/* Marker stroke behind headings, a darker tint of the note it sits on. */
-.panel-title { width: fit-content; padding-inline: 4px; background: linear-gradient(100deg, transparent 2%, color-mix(in srgb, var(--note) 80%, #000 20%) 4% 94%, transparent 97%) 0 70% / 100% 40% no-repeat; }
+/* Highlighter stroke behind headings. */
+.panel-title { width: fit-content; padding-inline: 4px; background: linear-gradient(100deg, transparent 2%, var(--hl, var(--marker)) 4% 94%, transparent 97%) 0 70% / 100% 42% no-repeat; }
 .brand span { background: linear-gradient(100deg, transparent 2%, var(--marker) 4% 94%, transparent 97%) 0 62% / 100% 46% no-repeat; }
 .panel-title .badge { background: var(--pen); color: #fff; }
 .agenda-head h2 { color: var(--pen); }

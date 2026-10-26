@@ -16,7 +16,7 @@ export const SKINS = [
 ];
 export const DEFAULT_SKIN = 'construction';
 export const SKIN_KEY = 'tb.skin';
-export const SKIN_VERSION = 2; // bump when any themes/*.css changes, to bust caches
+export const SKIN_VERSION = 3; // bump when any themes/*.css changes, to bust caches
 
 export function normalizeSkin(id) {
   return SKINS.some((s) => s.id === id) ? id : DEFAULT_SKIN;
