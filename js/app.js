@@ -804,15 +804,24 @@ function dateAt(clientX) {
   return best?.dataset.date;
 }
 
+// A block just put on the timeline whose row hasn't been left yet; Escape takes it back.
+// `prev` is the blank row it was written over (null when the row was new).
+let pendingBlock = null;
+
 /** Put a block on `date` from start to end, reusing the blank row if there is one. */
 function addBlock(date, start, end, { title, taskId } = {}) {
   const fields = { date, start, end, cal: taskId ? 'tasks' : undefined, taskId };
   if (title) fields.title = title;
   let row = state.rows.find((r) => L.isBlank(r));
-  if (row) Object.assign(row, fields);
-  else {
+  if (row) {
+    // Re-placing the pending block keeps what it originally replaced.
+    const prev = pendingBlock?.id === row.id ? pendingBlock.prev : { ...row, repeat: { ...row.repeat } };
+    Object.assign(row, fields);
+    pendingBlock = { id: row.id, prev };
+  } else {
     row = newRow(fields);
     state.rows.push(row);
+    pendingBlock = { id: row.id, prev: null };
   }
   rememberDuration(row);
   state.agendaDate = date;
@@ -1377,6 +1386,19 @@ function removeRow(row, focusPrev = false) {
   }
 }
 
+/** Take back a block that was still being added: restore the blank row it reused, or drop it. */
+function cancelPendingBlock(row, input) {
+  const { prev } = pendingBlock;
+  pendingBlock = null;
+  input.blur(); // renderRows leaves a focused input alone
+  state.saveErrors.delete(row.id);
+  lastDuration.delete(row.id);
+  if (!prev) { removeRow(row); return; }
+  for (const k of Object.keys(row)) if (!(k in prev)) delete row[k];
+  Object.assign(row, prev);
+  onRowsChanged();
+}
+
 const HHMM = /^\d{2}:\d{2}$/;
 const lastDuration = new Map(); // rowId -> last positive duration, to keep it when start changes
 
@@ -1443,6 +1465,8 @@ rowsEl.addEventListener('input', (e) => {
 // Show the normalized time (e.g. "930" -> "09:30") once the field loses focus.
 rowsEl.addEventListener('focusout', (e) => {
   const t = e.target;
+  const li = t.closest('.row');
+  if (pendingBlock && li?.dataset.id === pendingBlock.id && !li.contains(e.relatedTarget)) pendingBlock = null;
   if (!t.classList.contains('f-start') && !t.classList.contains('f-end')) return;
   const row = state.rows.find((r) => r.id === t.closest('.row')?.dataset.id);
   if (row) t.value = t.classList.contains('f-start') ? row.start : row.end;
@@ -1483,8 +1507,12 @@ rowsEl.addEventListener('keydown', (e) => {
   const li = e.target.closest('.row');
   const row = li && state.rows.find((r) => r.id === li.dataset.id);
   if (!row) return;
-  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  if (e.key === 'Escape' && pendingBlock?.id === row.id) {
     e.preventDefault();
+    cancelPendingBlock(row, e.target);
+  } else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    if (pendingBlock?.id === row.id) pendingBlock = null;
     const idx = state.rows.indexOf(row);
     const next = state.rows[idx + 1];
     if (e.shiftKey) {
