@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { SKINS, DEFAULT_SKIN, SKIN_VERSION, normalizeSkin, skinFile } from '../js/skin.js';
+import { SKINS, DEFAULT_SKIN, SKIN_VERSION, normalizeSkin } from '../js/skin.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
@@ -11,14 +11,9 @@ test('every skin has a stylesheet and a safe, unique id', () => {
   for (const { id, name } of SKINS) {
     assert.match(id, /^[a-z-]+$/);
     assert.ok(name);
-    assert.ok(existsSync(new URL(`../themes/${skinFile(id)}.css`, import.meta.url)), `themes/${skinFile(id)}.css is missing`);
+    assert.ok(existsSync(new URL(`../themes/${id}.css`, import.meta.url)), `themes/${id}.css is missing`);
   }
   assert.ok(ids.includes(DEFAULT_SKIN));
-});
-
-test('variants load their base stylesheet', () => {
-  assert.equal(skinFile('torn--washi'), 'torn');
-  assert.equal(skinFile('construction'), 'construction');
 });
 
 test('normalizeSkin falls back to the default', () => {

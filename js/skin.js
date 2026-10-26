@@ -1,24 +1,17 @@
 // Visual themes ("skins"). Each one is a stylesheet in themes/ layered over styles.css.
-// A variant id "base--variant" loads themes/base.css; its own rules hang off :root[data-skin="base--variant"].
 // index.html applies the saved skin before first paint; this module drives the picker.
 
 export const SKINS = [
   { id: 'construction', name: 'Construction' },
   { id: 'torn', name: 'Torn paper' },
-  // Calendar ideas for Torn paper, to compare side by side.
-  { id: 'torn--journal', name: 'Torn paper · bullet journal' },
-  { id: 'torn--planner', name: 'Torn paper · planner' },
-  { id: 'torn--washi', name: 'Torn paper · washi tape' },
 ];
 export const DEFAULT_SKIN = 'construction';
 export const SKIN_KEY = 'tb.skin';
-export const SKIN_VERSION = 5; // bump when any themes/*.css changes, to bust caches
+export const SKIN_VERSION = 6; // bump when any themes/*.css changes, to bust caches
 
 export function normalizeSkin(id) {
   return SKINS.some((s) => s.id === id) ? id : DEFAULT_SKIN;
 }
-
-export const skinFile = (id) => id.split('--')[0];
 
 export function currentSkin() {
   try {
@@ -40,11 +33,11 @@ export function applySkin(id) {
   const inline = document.querySelectorAll('style[data-skin]');
   if (inline.length) {
     // Single-file preview build: every skin is inlined; enable just one.
-    for (const el of inline) el.media = el.dataset.skin === skinFile(skin) ? 'all' : 'not all';
+    for (const el of inline) el.media = el.dataset.skin === skin ? 'all' : 'not all';
     syncThemeColor();
   } else {
     const link = document.getElementById('skin');
-    const href = `themes/${skinFile(skin)}.css?v=${SKIN_VERSION}`;
+    const href = `themes/${skin}.css?v=${SKIN_VERSION}`;
     if (link && link.getAttribute('href') !== href) {
       link.addEventListener('load', syncThemeColor, { once: true });
       link.setAttribute('href', href);
