@@ -751,7 +751,13 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 .d-note, .d-note-input { flex: 1 0 100%; margin-left: 22px; max-width: calc(100% - 22px); font-size: 11px; }
 .d-note { color: var(--muted); cursor: text; white-space: pre-wrap; overflow-wrap: anywhere; }
 .d-note-input { padding: 1px 4px; }
-.dist-done-toggle { border: 1px solid var(--border); }
+.dist-done-toggle, .dist-history-toggle { border: 1px solid var(--border); }
+.dist-history-toggle .count { padding: 0 6px; background: var(--accent-soft); color: var(--accent); }
+.dist-history { display: grid; gap: 4px; padding: 6px 8px; border: 1px solid var(--border); background: var(--surface-2); }
+.hm-cell.dist-cell { background: color-mix(in srgb, var(--accent) calc(25% + var(--k, 0) * 75%), var(--surface-2)); outline-color: transparent; }
+.hm-cell.dist-cell.zero { background: var(--surface-2); outline-color: var(--line); }
+.hm-cell.dist-cell.today { outline: 2px solid var(--accent); outline-offset: -2px; }
+.hm-cell.picked { outline: 2px solid var(--accent-2); outline-offset: -2px; }
 .shortcut-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); color: var(--muted); }
 .shortcut-setting .chip-btn.recording { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .shortcut-note { flex: 1 0 100%; color: var(--bad); }

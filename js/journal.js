@@ -3,7 +3,7 @@
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as drive from './drive.js';
-import * as L from './logic.js?v=21'; // bump with app.js?v= in index.html
+import * as L from './logic.js?v=22'; // bump with app.js?v= in index.html
 
 const $ = (sel) => document.querySelector(sel);
 const HABITS_KEY = 'tb.habits';
@@ -329,6 +329,8 @@ function wireHabits() {
 
 const distEl = () => $('#distList');
 let showDoneDistractions = false;
+let showDistHistory = false;
+let historyDay = null; // past day picked on the history heatmap, or null for all days
 let editingNote = null; // entry id whose note input is open
 
 function logDistraction(text) {
@@ -357,20 +359,52 @@ function dayGroups(entries) {
     h('ol', { class: 'dist-items' }, items.map(distItem))));
 }
 
+/** Triggers per day over the last weeks; busier days are darker. Click a day to show only that day. */
+function distHeatmap(entries, today) {
+  const { h, fmtDay, plural } = deps;
+  const counts = L.countByDay(entries);
+  const max = Math.max(1, ...Object.values(counts));
+  const cells = L.heatmapWeeks(today, HEATMAP_WEEKS).flat().map((date) => {
+    if (date > today) return h('span', { class: 'hm-cell future' });
+    const n = counts[date] || 0;
+    const past = date < today && n;
+    return h('span', {
+      class: `hm-cell dist-cell${n ? '' : ' zero'}${date === today ? ' today' : ''}${past ? ' can' : ''}${date === historyDay ? ' picked' : ''}`,
+      'data-date': past ? date : null,
+      style: { '--k': (n / max).toFixed(2) },
+      title: `${fmtDay(date)} · ${plural(n, 'trigger')}${past ? (date === historyDay ? ' · click to show all days' : ' · click to show this day') : ''}`,
+    });
+  });
+  return h('div', { class: 'heatmap', style: { '--weeks': HEATMAP_WEEKS } }, cells);
+}
+
+/** Today's entries in the list; earlier days live under History, so the panel starts fresh each day. */
 export function renderDistractions() {
-  const { h } = deps;
+  const { h, plural } = deps;
   const el = distEl();
   if (el.contains(document.activeElement) && document.activeElement.matches('input[type=text]')) return;
-  const open = distractions.items.filter((e) => !e.done);
-  const done = distractions.items.filter((e) => e.done);
-  const today = distractions.items.filter((e) => L.ymd(new Date(e.at)) === deps.todayStr()).length;
-  $('#distStats').textContent = `${deps.plural(today, 'trigger')} today · ${open.length} open`;
+  const today = deps.todayStr();
+  const todays = distractions.items.filter((e) => L.ymd(new Date(e.at)) === today);
+  const past = distractions.items.filter((e) => L.ymd(new Date(e.at)) !== today);
+  const open = todays.filter((e) => !e.done);
+  const done = todays.filter((e) => e.done);
+  if (historyDay && !past.some((e) => L.ymd(new Date(e.at)) === historyDay)) historyDay = null;
+  const shown = historyDay ? past.filter((e) => L.ymd(new Date(e.at)) === historyDay) : past;
+  $('#distStats').textContent = `${plural(todays.length, 'trigger')} today · ${open.length} open`;
   el.replaceChildren(...[
     ...dayGroups(open),
-    open.length ? null : h('p', { class: 'muted small empty' }, done.length ? 'Nothing open. Nice.' : 'Nothing logged yet.'),
+    open.length ? null : h('p', { class: 'muted small empty' }, done.length ? 'Nothing open. Nice.' : 'Nothing logged today.'),
     done.length ? h('button', { type: 'button', class: 'lane-head toggle dist-done-toggle', 'aria-expanded': String(showDoneDistractions) },
       h('span', {}, 'Done'), h('span', { class: 'count' }, String(done.length)), h('span', { class: 'caret' }, showDoneDistractions ? '▾' : '▸')) : null,
     ...(showDoneDistractions ? dayGroups(done) : []),
+    past.length ? h('button', { type: 'button', class: 'lane-head toggle dist-history-toggle', 'aria-expanded': String(showDistHistory) },
+      h('span', {}, 'History'), h('span', { class: 'count' }, String(past.length)), h('span', { class: 'caret' }, showDistHistory ? '▾' : '▸')) : null,
+    showDistHistory && past.length ? h('div', { class: 'dist-history' },
+      distHeatmap(distractions.items, today),
+      h('div', { class: 'muted small' }, historyDay
+        ? h('span', {}, `${deps.fmtDay(historyDay)} · `, h('button', { type: 'button', class: 'linkish dist-history-all' }, 'show all days'))
+        : 'Triggers per day · click a day to see only that day')) : null,
+    ...(showDistHistory ? dayGroups(shown) : []),
   ].filter(Boolean));
   $('#distBadge').textContent = open.length ? String(open.length) : '';
   el.querySelector('.d-note-input')?.focus();
@@ -393,6 +427,17 @@ function wireDistractions() {
   distEl().addEventListener('click', (e) => {
     if (e.target.closest('.dist-done-toggle')) {
       showDoneDistractions = !showDoneDistractions;
+      renderDistractions();
+      return;
+    }
+    if (e.target.closest('.dist-history-toggle')) {
+      showDistHistory = !showDistHistory;
+      renderDistractions();
+      return;
+    }
+    const cell = e.target.closest('.hm-cell[data-date]');
+    if (cell || e.target.closest('.dist-history-all')) {
+      historyDay = cell && cell.dataset.date !== historyDay ? cell.dataset.date : null;
       renderDistractions();
       return;
     }
