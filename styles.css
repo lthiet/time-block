@@ -1,6 +1,6 @@
-/* Construction zone, light: concrete ground, white panels, thick black borders, safety yellow and hazard orange. */
+/* Construction zone, light: blueprint grid paper, white panels, thick black borders, safety yellow, hazard orange and blueprint blue. */
 :root {
-  --bg: #e2dfd8;                     /* concrete */
+  --bg: #e3ebf6;                     /* blueprint paper */
   --bar: #ffd200;                    /* top bar: safety yellow */
   --surface: #ffffff;                /* panels */
   --surface-solid: #ffffff;          /* opaque: cards, sticky headers, colour mixes */
@@ -8,21 +8,23 @@
   --field: #ffffff;                  /* inputs */
   --ink: #141414;                    /* borders and hard shadows */
   --border: var(--ink);
-  --line: rgb(0 0 0 / .08);          /* hairlines */
+  --line: rgb(31 91 204 / .13);      /* hairlines: blueprint grid */
+  --grid-major: rgb(31 91 204 / .16);
+  --grid-minor: rgb(31 91 204 / .07);
   --text: #141414;
   --muted: #6b675f;
   --yellow: #ffd200;
   --orange: #ff6b00;
+  --blue: #1f5bcc;                   /* blueprint blue */
   --accent: var(--yellow);           /* fills, active states */
   --accent-2: var(--orange);         /* secondary fills, focus */
   --accent-3: var(--yellow);         /* heading text shadows */
   --accent-ink: var(--ink);          /* text on yellow and orange fills */
-  --label: #b04400;                  /* orange dark enough for text on white */
+  --label: #1a4aa8;                  /* blueprint blue for labels and figures */
   --accent-soft: color-mix(in srgb, var(--yellow) 22%, var(--surface-solid));
   --bw: 3px;
   --bw-sm: 2px;
   --ps: var(--ink); /* panel shadow colour */
-  --shadow: 6px 6px 0 var(--ps);
   --shadow-sm: 3px 3px 0 var(--ink);
   --hazard: repeating-linear-gradient(-45deg, var(--accent) 0 8px, var(--accent-ink) 8px 16px);
   --font: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -48,10 +50,11 @@ body {
   min-height: 100dvh;
   background-color: var(--bg);
   background-image:
-    repeating-linear-gradient(0deg, rgb(0 0 0 / .022) 0 1px, transparent 1px 3px),
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: auto, 48px 48px, 48px 48px;
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size: 60px 60px, 60px 60px, 12px 12px, 12px 12px;
   background-attachment: fixed;
   color: var(--text);
   font: 13px/1.4 var(--font);
@@ -203,15 +206,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   position: relative;
   background: var(--surface);
   border: var(--bw) solid var(--ink);
-  box-shadow: var(--shadow);
+  box-shadow: 6px 6px 0 var(--ps); /* set here, not via --shadow, so each panel's --ps applies */
   padding: 12px 10px 10px;
   min-width: 0;
 }
 .panel.habits { --ps: var(--yellow); }
 .panel.distractions { --ps: var(--orange); }
-.panel.tasks { --ps: var(--ink); }
+.panel.tasks { --ps: var(--blue); }
 .panel.entry { --ps: var(--orange); }
-.panel.agenda { --ps: var(--yellow); }
+.panel.agenda { --ps: var(--blue); }
 /* Hazard tape across the top-left corner. */
 .panel::before {
   content: "";
@@ -241,7 +244,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .settings summary::-webkit-details-marker { display: none; }
 .settings summary::before { content: "▶"; color: var(--orange); font-size: 10px; transition: transform .15s; }
 .settings[open] summary::before { transform: rotate(90deg); }
-.settings summary strong { color: var(--accent-ink); background: var(--accent-2); padding: 0 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.settings summary strong { color: var(--surface-solid); background: var(--blue); padding: 0 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .settings-body { display: grid; gap: 8px; padding: 0 12px 10px; }
 .field { display: grid; gap: 4px; border: 0; padding: 0; margin: 0; }
 .field > span, .field legend { font: 600 10px var(--font-mono); text-transform: uppercase; letter-spacing: .12em; color: var(--label); padding: 0; }
@@ -292,7 +295,7 @@ input[type=checkbox] { accent-color: var(--orange); }
   cursor: pointer;
   transition: background .1s, color .1s;
 }
-.day-toggle:hover { background: var(--accent-2); color: var(--accent-ink); }
+.day-toggle:hover { background: var(--blue); color: var(--surface-solid); }
 .day-toggle.on { background: var(--accent); color: var(--accent-ink); }
 .repeat-line .until { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); }
 .repeat-line .f-until { padding: 1px 4px; font-size: 12px; }
@@ -338,7 +341,7 @@ input[type=checkbox] { accent-color: var(--orange); }
 .flash { margin: 10px 4px 4px 0; padding: 8px 10px; font-size: 12px; border: var(--bw-sm) solid var(--ink); }
 .flash.ok { background: var(--ok-soft); color: var(--ok); box-shadow: 4px 4px 0 var(--ok); }
 .flash.bad { background: var(--bad-soft); color: var(--bad); box-shadow: 4px 4px 0 var(--bad); }
-.flash.info { background: var(--surface-2); box-shadow: 4px 4px 0 var(--accent-2); }
+.flash.info { background: var(--surface-2); box-shadow: 4px 4px 0 var(--blue); }
 .flash ul { margin: 4px 0 0; padding-left: 18px; }
 .flash a { color: inherit; }
 .flash .btn { margin-left: 8px; padding: 2px 10px; }
@@ -399,7 +402,14 @@ input[type=checkbox] { accent-color: var(--orange); }
 .tl-allday { display: grid; gap: 2px; margin-top: 2px; }
 .tl-allday:empty { display: none; }
 
-.tl-body { position: relative; margin-left: 40px; }
+/* Blueprint sheet behind the calendar, with quarter-hour ticks. */
+.tl-body {
+  position: relative;
+  margin-left: 40px;
+  background:
+    linear-gradient(var(--grid-minor) 1px, transparent 1px) 0 0 / 100% calc(var(--hour) / 4),
+    color-mix(in srgb, var(--blue) 6%, var(--surface-solid));
+}
 .tl-cols { position: absolute; inset: 0; display: grid; }
 .tl-col { position: relative; min-width: 0; border-left: 1px solid var(--line); }
 .tl-col.today { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--yellow) 26%, transparent) 0 6px, transparent 6px 16px); }
@@ -417,7 +427,7 @@ input[type=checkbox] { accent-color: var(--orange); }
   width: 34px;
   text-align: right;
   font: 15px var(--font-term);
-  color: var(--muted);
+  color: var(--label);
 }
 .timeline .now {
   position: absolute;
@@ -517,7 +527,7 @@ input[type=checkbox] { accent-color: var(--orange); }
   background: var(--surface-2);
   transition: background .1s, box-shadow .1s;
 }
-.lane.drop-target { background: color-mix(in srgb, var(--accent-2) 12%, var(--surface-2)); box-shadow: 4px 4px 0 var(--accent-2); }
+.lane.drop-target { background: color-mix(in srgb, var(--blue) 12%, var(--surface-2)); box-shadow: 4px 4px 0 var(--blue); }
 .lane-head {
   display: flex;
   align-items: center;
@@ -582,7 +592,7 @@ input[type=checkbox] { accent-color: var(--orange); }
 .sched.draft { border-style: dashed; border-left-style: solid; }
 .task-item { display: grid; gap: 3px; }
 .task-item.dragging { opacity: .4; }
-.task-card.nest-target { border-color: var(--accent-2); box-shadow: 4px 4px 0 var(--accent-2); }
+.task-card.nest-target { border-color: var(--blue); box-shadow: 4px 4px 0 var(--blue); }
 .subtasks { list-style: none; margin: 0 0 0 12px; padding: 0 0 0 6px; display: grid; gap: 3px; border-left: var(--bw-sm) dashed var(--muted); }
 .task-card.sub { font-size: 11px; }
 .sub-new input { width: 100%; padding: 1px 4px; font-size: 11px; }
@@ -595,7 +605,7 @@ input[type=checkbox] { accent-color: var(--orange); }
   cursor: pointer;
   white-space: nowrap;
 }
-.sub-toggle:hover { color: var(--accent-ink); background: var(--accent-2); border-color: var(--ink); }
+.sub-toggle:hover { color: var(--surface-solid); background: var(--blue); border-color: var(--ink); }
 .drop-line { height: 0; border-top: 4px solid var(--orange); margin: -2px 0; }
 .task-chip {
   position: fixed;
@@ -752,8 +762,9 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
   align-items: flex-start;
   padding: 14vh 16px 0;
   background:
-    repeating-linear-gradient(0deg, rgb(0 0 0 / .06) 0 1px, transparent 1px 3px),
-    rgb(236 236 233 / .7);
+    linear-gradient(var(--grid-minor) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px) 0 0 / 12px 12px,
+    rgb(227 235 246 / .72);
 }
 .capture-box {
   position: relative;
