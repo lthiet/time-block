@@ -6,7 +6,7 @@ import {
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
   stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
   tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit, isAvoid,
-  heatmapWeeks, combinedDayState, groupByDay, comboFromEvent, formatCombo, shortcutProblem,
+  heatmapWeeks, combinedDayState, groupByDay, countByDay, comboFromEvent, formatCombo, shortcutProblem,
 } from '../js/logic.js';
 
 const TODAY = '2026-09-27'; // a Sunday
@@ -483,4 +483,12 @@ test('combinedDayState mixes do and avoid habits', () => {
   assert.deepEqual(combinedDayState([a, b], '2026-09-25', TODAY).broken.map((x) => x.id), ['h', 'b']);
   assert.equal(combinedDayState([a, b], '2026-09-26', TODAY).state, 'done');
   assert.equal(combinedDayState([toggleCheck(a, TODAY, 1), b], TODAY, TODAY).state, 'pending'); // the avoid habit can still slip
+});
+
+test('countByDay counts entries per local day', () => {
+  const at = (d, t) => new Date(`${d}T${t}`).getTime();
+  assert.deepEqual(countByDay([
+    { at: at('2026-09-27', '09:00') }, { at: at('2026-09-27', '23:59') }, { at: at('2026-09-26', '00:00') },
+  ]), { '2026-09-27': 2, '2026-09-26': 1 });
+  assert.deepEqual(countByDay([]), {});
 });

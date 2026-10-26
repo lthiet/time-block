@@ -609,6 +609,16 @@ export function groupByDay(entries) {
   return [...days].sort((x, y) => (x[0] < y[0] ? 1 : -1)).map(([date, items]) => ({ date, items }));
 }
 
+/** How many entries were logged on each local day, as {'YYYY-MM-DD': n}. */
+export function countByDay(entries) {
+  const counts = {};
+  for (const e of entries) {
+    const d = ymd(new Date(e.at));
+    counts[d] = (counts[d] || 0) + 1;
+  }
+  return counts;
+}
+
 // ---------------------------------------------------------------- keyboard shortcuts
 
 const MOD_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'OS', 'AltGraph']);

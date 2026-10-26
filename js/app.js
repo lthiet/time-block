@@ -2,8 +2,8 @@ import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION,
 import * as auth from './auth.js';
 import * as gcal from './gcal.js';
 import * as drive from './drive.js';
-import * as L from './logic.js?v=21'; // bump with app.js?v= in index.html
-import * as J from './journal.js?v=21';
+import * as L from './logic.js?v=22'; // bump with app.js?v= in index.html
+import * as J from './journal.js?v=22';
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
