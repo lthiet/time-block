@@ -1,4 +1,4 @@
-/* Sketchbook: ruled notebook paper, pen-drawn wobbly boxes, handwriting, highlighter marks. */
+/* Sketchbook: sticky notes taped to ruled notebook paper. Straight pen lines, handwriting, marker strokes. */
 @import url("https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Courier+Prime&display=swap");
 
 :root {
@@ -6,8 +6,9 @@
   --blue-pen: #2f5fb3;
   --red-pen: #d9472b;
   --marker: #fff176;
-  --wobble: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  --wobble-sm: 12px 3px 14px 4px / 4px 14px 3px 12px;
+  --note: #fff27a;                   /* sticky-note colour; each panel sets its own below */
+  --tape: rgb(255 255 255 / .55);
+  --on-note: rgb(255 255 255 / .6);  /* cards and fields sitting on a note */
 
   --bg: #fbf8ef;
   --page-bg:
@@ -16,42 +17,42 @@
     #fbf8ef;
   --bar: #fbf8ef;
   --bar-text: var(--pen);
-  --surface: #fffdf7;
+  --surface: var(--note);
   --surface-solid: #fffdf7;
-  --surface-2: #f7f3e8;
-  --field: #fffdf7;
+  --surface-2: rgb(255 255 255 / .5);
+  --field: rgb(255 255 255 / .72);
   --ink: var(--pen);
   --border: var(--pen);
   --border-strong: var(--pen);
   --line: rgb(47 95 179 / .14);
   --text: var(--pen);
-  --muted: #6e6a60;
-  --accent: var(--marker);
-  --accent-ink: var(--pen);
+  --muted: #5f5b52;
+  --accent: var(--blue-pen);
+  --accent-ink: #ffffff;
   --accent-2: var(--red-pen);
   --accent-2-ink: #ffffff;
-  --accent-soft: rgb(255 241 118 / .45);
+  --accent-soft: rgb(47 95 179 / .12);
   --info: var(--blue-pen);
   --info-ink: #ffffff;
   --label: var(--blue-pen);
   --done: var(--pen);
   --sheet: #fffdf7;
-  --today-col: rgb(255 241 118 / .28);
+  --today-col: rgb(255 241 118 / .4);
   --now: var(--red-pen);
   --overlay: rgb(251 248 239 / .75);
 
-  --radius: var(--wobble);
-  --radius-sm: var(--wobble-sm);
-  --bw: 2px;
+  --radius: 0;
+  --radius-sm: 2px;
+  --bw: 0px;
   --bw-sm: 1.5px;
-  --panel-shadow: 3px 4px 0 rgb(43 43 43 / .85);
+  --panel-shadow: 0 1px 1px rgb(0 0 0 / .12), 0 12px 14px -9px rgb(0 0 0 / .35), 0 24px 26px -20px rgb(0 0 0 / .25);
   --ctl-shadow: 2px 2px 0 var(--pen);
   --ctl-shadow-hover: 3px 3px 0 var(--pen);
-  --ctl-lift: rotate(-1deg);
+  --ctl-lift: translate(-1px, -1px);
   --ctl-press: translate(2px, 2px);
   --card-hover: 2px 2px 0 var(--pen);
-  --focus-ring: 0 0 0 3px rgb(255 241 118 / .9);
-  --gap: 20px;
+  --focus-ring: 0 0 0 3px rgb(47 95 179 / .3);
+  --gap: 22px;
 
   --font: "Patrick Hand", "Comic Sans MS", cursive;
   --font-display: "Caveat", "Patrick Hand", cursive;
@@ -67,20 +68,60 @@
 
 body { font-size: 15px; }
 .topbar { border-bottom: 2px solid var(--pen); }
-/* Highlighter swipe behind headings. */
-.panel-title, .brand span { background: linear-gradient(100deg, transparent 2%, var(--marker) 4% 94%, transparent 97%) 0 62% / 100% 46% no-repeat; }
-.panel-title { width: fit-content; padding-inline: 4px; }
+.layout { padding-top: 24px; }
+
+/* Panels are sticky notes: no outline, a slightly darker curl at the bottom right, a strip of tape on top. */
+.panel.habits { --note: #fff27a; rotate: -.6deg; }
+.panel.distractions { --note: #ffc6d9; rotate: .4deg; }
+.panel.tasks { --note: #c9e7ff; rotate: .4deg; }
+.panel.entry { --note: #d3f5c6; }
+.panel.agenda { --note: #ffe2bd; }
+.panel {
+  background: linear-gradient(165deg, var(--note) 72%, color-mix(in srgb, var(--note) 86%, #000) 100%);
+  padding-top: 16px;
+}
+.panel::before {
+  content: "";
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 96px;
+  height: 22px;
+  translate: -50% 0;
+  rotate: -2deg;
+  background: var(--tape);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .12);
+  pointer-events: none;
+}
+
+/* Marker stroke behind headings, a darker tint of the note it sits on. */
+.panel-title { width: fit-content; padding-inline: 4px; background: linear-gradient(100deg, transparent 2%, color-mix(in srgb, var(--note) 80%, #000 20%) 4% 94%, transparent 97%) 0 70% / 100% 40% no-repeat; }
+.brand span { background: linear-gradient(100deg, transparent 2%, var(--marker) 4% 94%, transparent 97%) 0 62% / 100% 46% no-repeat; }
+.panel-title .badge { background: var(--pen); color: #fff; }
 .agenda-head h2 { color: var(--pen); }
+
+.btn, .chip-btn, .view-toggle { background: var(--on-note); }
 .btn.primary { background: var(--red-pen); color: #fff; }
-.lane, .dist-day { background: transparent; border-style: dashed; }
-.lane-head, .dist-day-head { background: transparent; border-bottom-style: dashed; font: 400 14px var(--font); letter-spacing: .02em; }
-.task-card, .habit, .dist { background: var(--surface-solid); }
-.h-check.on, .day-toggle.on { background: var(--marker); }
-.tl-dayhead.today .dom { background: var(--marker); }
-.tl-head { border-bottom-style: dashed; }
-.settings { border-block-style: dashed; }
-.actionbar, .legend, .shortcut-setting { border-top-style: dashed; }
-.habit-map { border-bottom-style: dashed; }
+.lane, .dist-day { background: rgb(255 255 255 / .35); }
+.lane-head, .dist-day-head { background: transparent; font: 400 14px var(--font); letter-spacing: .02em; }
+.task-card, .habit, .dist { background: var(--on-note); }
 .task-card, .habit, .dist, .task-card .t-title, .h-title-input { font-size: 14px; }
-.timeline .now { height: 2px; background: repeating-linear-gradient(90deg, var(--red-pen) 0 6px, transparent 6px 10px); }
+.settings { border-block-color: rgb(43 43 43 / .35); }
+.actionbar, .legend, .habit-map, .shortcut-setting { border-color: rgb(43 43 43 / .35); }
+.tl-head { background: #fffdf7; }
+
+/* Capture popup: one more yellow sticky note. */
+.capture-box { background: #fff27a; border: 0; box-shadow: var(--panel-shadow); padding-top: 18px; }
 .capture-box::before { content: "Note to self:"; display: block; font: 700 24px var(--font-display); color: var(--blue-pen); margin-bottom: 4px; }
+.capture-box::after {
+  content: "";
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 110px;
+  height: 22px;
+  translate: -50% 0;
+  rotate: 2deg;
+  background: var(--tape);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .12);
+}
