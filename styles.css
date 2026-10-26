@@ -71,7 +71,8 @@
   --btn-tracking: 0;
   --label-font: 600 10px var(--font-mono);
 
-  --hour: 36px;
+  --hour: 36px;      /* set at runtime to stretch the calendar to the panel height */
+  --hour-min: 36px;
   color-scheme: light;
 }
 

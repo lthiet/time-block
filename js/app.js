@@ -742,6 +742,12 @@ function renderAgenda() {
   });
   body.append(h('div', { class: 'tl-cols', style: { gridTemplateColumns: gridCols(dates.length) } }, colEls));
   tl.replaceChildren(...[head, body].filter(Boolean));
+  tl.dataset.hours = (to - from) / 60;
+  if (!refitting && fitHour()) {
+    refitting = true;
+    try { renderAgenda(); } finally { refitting = false; }
+    return;
+  }
 
   const legendCals = state.calendars.filter((c) => (state.checkIds || []).includes(c.id));
   $('#legend').replaceChildren(
@@ -758,6 +764,26 @@ const DRAG_THRESHOLD = 4; // px before a press becomes a drag
 let drag = null; // {mode:'create'|'move'|'resize'|'tap', pointerId, date, startY, moved, rowId?, orig?, offset?, anchor?, s?, e?}
 
 const hourPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour')) || 36;
+const desktop = matchMedia('(min-width: 901px)');
+let refitting = false;
+
+/** Stretch the shown hours to fill the calendar panel (never below --hour-min). Returns true if --hour changed. */
+function fitHour() {
+  const root = document.documentElement;
+  const tl = $('#timeline');
+  const body = tl.querySelector('.tl-body');
+  let fit = parseFloat(getComputedStyle(root).getPropertyValue('--hour-min')) || 36;
+  // Only the desktop layout gives the calendar a fixed height to fill; stacked (mobile) keeps the minimum.
+  if (desktop.matches && body) {
+    // Everything above and below the hour grid: week head with all-day chips, padding.
+    const fixed = body.getBoundingClientRect().top - tl.getBoundingClientRect().top + tl.scrollTop
+      + parseFloat(getComputedStyle(tl).paddingBottom);
+    fit = Math.max(fit, Math.floor((tl.clientHeight - fixed) / Number(tl.dataset.hours)));
+  }
+  if (fit === hourPx()) return false;
+  root.style.setProperty('--hour', `${fit}px`);
+  return true;
+}
 const toMins = (t) => { const [hh, mm] = t.split(':').map(Number); return hh * 60 + mm; };
 const toHM = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -1825,6 +1851,8 @@ async function main() {
   // Panels fill the screen below the (sticky, possibly wrapping) top bar.
   const topbar = $('.topbar');
   new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${topbar.offsetHeight}px`)).observe(topbar);
+  // Window resizes, a wrapping top bar, etc. change the room the calendar has to fill.
+  new ResizeObserver(() => { if (fitHour()) renderAgenda(); }).observe($('#timeline'));
   initSkinPicker($('#skinSelect'));
   loadPersisted();
   ensureTrailingBlank();
