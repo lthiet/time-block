@@ -127,7 +127,7 @@ function dress(el, i) {
   el.style.setProperty('--curl', `${o.lift}px`);
 }
 
-const SQUARES = '.panel, .capture-box';
+const SQUARES = '.panel, .capture-box, .ev-card';
 
 function cut(el) {
   el.style.setProperty('--cut-edge', cutOutline(hashSeed(el.className)));

@@ -1,6 +1,6 @@
 // Visual themes ("skins"). Each one is a stylesheet in themes/ layered over styles.css.
 // index.html applies the saved skin before first paint; this module drives the picker.
-import { setPostit } from './postit.js?v=1';
+import { setPostit } from './postit.js?v=2';
 
 export const SKINS = [
   { id: 'construction', name: 'Construction' },
@@ -8,7 +8,7 @@ export const SKINS = [
 ];
 export const DEFAULT_SKIN = 'construction';
 export const SKIN_KEY = 'tb.skin';
-export const SKIN_VERSION = 13; // bump when any themes/*.css changes, to bust caches
+export const SKIN_VERSION = 14; // bump when any themes/*.css changes, to bust caches
 
 export function normalizeSkin(id) {
   return SKINS.some((s) => s.id === id) ? id : DEFAULT_SKIN;
