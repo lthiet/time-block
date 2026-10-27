@@ -187,11 +187,11 @@ body { font-size: 15px; }
   --note-base: none;
   --curl-r: 0 0;                     /* shading box at each bottom corner, twice its fold */
   --curl-l: 0 0;
-  /* A lifted corner: a bright rim along the fold, then the paper darkening as it bends up, fading
-     back into the flat note. The fold crosses each box a quarter of the way in from its corner. */
+  /* A lifted corner: the paper darkens toward the fold as it bends up, fading back into the flat
+     note. The fold crosses each box a quarter of the way in from its corner. */
   --curl-shade:
-    linear-gradient(to top left, transparent 22%, rgb(255 255 255 / .8) 26%, rgb(255 255 255 / .25) 34%, rgb(70 55 20 / .16) 44%, transparent 72%) right bottom / var(--curl-r) no-repeat,
-    linear-gradient(to top right, transparent 22%, rgb(255 255 255 / .8) 26%, rgb(255 255 255 / .25) 34%, rgb(70 55 20 / .16) 44%, transparent 72%) left bottom / var(--curl-l) no-repeat;
+    linear-gradient(to top left, transparent 22%, rgb(70 55 20 / .2) 26%, rgb(70 55 20 / .07) 42%, transparent 64%) right bottom / var(--curl-r) no-repeat,
+    linear-gradient(to top right, transparent 22%, rgb(70 55 20 / .2) 26%, rgb(70 55 20 / .07) 42%, transparent 64%) left bottom / var(--curl-l) no-repeat;
   --lift: 1px 2px;
   isolation: isolate;
   font-family: var(--font);
