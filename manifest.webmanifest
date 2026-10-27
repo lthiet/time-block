@@ -1,6 +1,6 @@
 {
-  "name": "Life Tracker",
-  "short_name": "Life Tracker",
+  "name": "Tracker",
+  "short_name": "Tracker",
   "description": "Plan time blocks in Google Calendar, track tasks and habits, and log distractions.",
   "start_url": "./",
   "scope": "./",
