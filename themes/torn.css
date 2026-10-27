@@ -225,6 +225,14 @@ body { font-size: 15px; }
 .blk b { font-weight: 400; font-size: 13px; }
 .blk .blk-time { font: 11px var(--font); opacity: .75; }
 @container (max-width: 64px) { .blk b { font-size: 11px; line-height: 1.1; } }
+/* Short blocks (half an hour or so) have room for a smaller title only; the time is in the tooltip.
+   Every block's height is set, so it can be a size container. */
+.blk { container-type: size; }
+@container (max-height: 40px) {
+  .blk b { font-size: 11px; line-height: 1.1; }
+  .blk .blk-time { display: none; }
+}
+@container (max-height: 20px) { .blk b { font-size: 10px; line-height: 1; margin-top: -3px; } } /* quarter-hour blocks */
 .blk.draft, .blk.ghost { border: 0; --note: color-mix(in srgb, var(--c) 32%, #fffef8); }
 .blk.draft::before, .blk.ghost::before {
   background:
