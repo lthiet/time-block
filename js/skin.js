@@ -4,7 +4,7 @@ import { setPostit } from './postit.js?v=1';
 
 export const SKINS = [
   { id: 'construction', name: 'Construction' },
-  { id: 'torn', name: 'Torn paper' },
+  { id: 'torn', name: 'Cut paper' }, // id kept from when it was torn, so saved choices still apply
 ];
 export const DEFAULT_SKIN = 'construction';
 export const SKIN_KEY = 'tb.skin';

@@ -1,5 +1,7 @@
-// Post-it calendar blocks (Torn paper skin): every block gets its own procedurally generated outline.
-// Its edges waver a little, and its bottom edge curls up off the page, unevenly. The outline is a clip-path
+// Paper skin: each square is cut from paper with scissors and each calendar block is a post-it,
+// every one with its own procedurally generated outline. Cut squares have straight edges that change
+// angle where the scissors were re-gripped, and now and then a nick where a cut ran past a corner;
+// post-its waver a little and their bottom edge curls up off the page, unevenly. The outline is a clip-path
 // polygon in percentages plus pixels, so it fits whatever size the note is.
 
 // Small seeded PRNG (mulberry32), so a note keeps the same outline each time it's re-rendered.
@@ -65,6 +67,47 @@ export function noteOutline(seed, { wobble = 1, lift = [3, 8], across = 7, down 
   };
 }
 
+/**
+ * Outline of a square cut out with scissors: each edge is one or a few straight cuts, set in from
+ * the box by a few px and at slightly different angles, and some corners have a short slit where a
+ * cut overshot.
+ * @param seed   number; same seed, same outline
+ * @param inset  [min, max] px each cut sits in from the box
+ * @returns a clip-path polygon
+ */
+export function cutOutline(seed, { inset = [1, 9] } = {}) {
+  const rand = rng(seed);
+  const between = (lo, hi) => lo + rand() * (hi - lo);
+  // A point on a side, `pct`% plus `px` along it clockwise, `depth` px in from the box.
+  const pt = (side, pct, px, depth) => [
+    () => `${at(pct, px)} ${at(0, depth)}`,
+    () => `${at(100, -depth)} ${at(pct, px)}`,
+    () => `${at(100 - pct, -px)} ${at(100, -depth)}`,
+    () => `${at(0, depth)} ${at(100 - pct, -px)}`,
+  ][side]();
+
+  const edges = [0, 1, 2, 3].map(() => ({
+    start: between(...inset),
+    end: between(...inset),
+    // Where the scissors were re-gripped: the cut changes angle a little.
+    kinks: Array.from({ length: Math.floor(rand() * 3) }, () => [between(20, 80), between(...inset)]).sort((a, b) => a[0] - b[0]),
+    // A slit a few px from the start, where the cut along the previous side ran on past the corner.
+    nick: rand() < 0.3 ? [between(6, 16), between(3, 7)] : null,
+  }));
+
+  const pts = [];
+  edges.forEach((e, side) => {
+    const prev = edges[(side + 3) % 4];
+    pts.push(pt(side, 0, prev.end, e.start)); // the corner, where this cut meets the last
+    if (e.nick) {
+      const [along, deep] = e.nick;
+      pts.push(pt(side, 0, along, e.start), pt(side, 0, along + 0.4, e.start + deep), pt(side, 0, along + 1, e.start));
+    }
+    for (const [pct, depth] of e.kinks) pts.push(pt(side, pct, 0, depth));
+  });
+  return `polygon(${pts.join(', ')})`;
+}
+
 const NOTES = '.blk, .allday-chip';
 
 function seedFor(el, i) {
@@ -84,6 +127,12 @@ function dress(el, i) {
   el.style.setProperty('--curl', `${o.lift}px`);
 }
 
+const SQUARES = '.panel, .capture-box';
+
+function cut(el) {
+  el.style.setProperty('--cut-edge', cutOutline(hashSeed(el.className)));
+}
+
 let observer = null;
 
 /** Turn the generated outlines on or off; called whenever the skin changes. */
@@ -92,6 +141,7 @@ export function setPostit(on) {
   observer = null;
   if (!on) return;
   document.querySelectorAll(NOTES).forEach(dress);
+  document.querySelectorAll(SQUARES).forEach(cut);
   let n = 0;
   observer = new MutationObserver((records) => {
     for (const r of records) {
@@ -99,6 +149,8 @@ export function setPostit(on) {
         if (node.nodeType !== 1) continue;
         if (node.matches(NOTES)) dress(node, n++);
         node.querySelectorAll(NOTES).forEach((el) => dress(el, n++));
+        if (node.matches(SQUARES)) cut(node);
+        node.querySelectorAll(SQUARES).forEach(cut);
       }
     }
   });
