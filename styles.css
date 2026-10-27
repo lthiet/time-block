@@ -868,6 +868,8 @@ input.fit-in { width: 100%; padding: 4px 7px; font: 13px var(--font-mono); }
 .fit-add { display: block; margin-top: 2px; font-size: 12px; }
 .fit-save { width: 100%; padding: 7px 14px; }
 .btn.fit-save.saved { background: var(--ok); border-color: var(--ok); color: #fff; }
+.fit-group { margin: 10px 0 4px; font: var(--label-font); text-transform: uppercase; letter-spacing: .12em; color: var(--label); }
+.fit-group:first-child { margin-top: 0; }
 .fit-chart { display: flex; }
 .fit-axis, .fit-plot { display: block; }
 .fit-axis { flex: none; }

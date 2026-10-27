@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_PROGRAMS, cleanPrograms, cleanSessions, cleanWeighins, todaysProgram, exerciseSessions, maxWeight,
   setsToText, textToSets, sessionsFromInputs, upsert, rangeCutoff, inRange, emaTrend,
-  fromIronLog, mergeImport, combineIronLog,
+  fromIronLog, mergeImport, combineIronLog, progressGroups,
 } from '../js/fitness-logic.js';
 
 test('cleaners drop malformed records and key sessions and weigh-ins', () => {
@@ -84,4 +84,14 @@ test('combineIronLog prefers the second source per record', () => {
   assert.deepEqual(c.programs, [{ id: 'p' }]);
   assert.deepEqual(c.sessions.map((s) => s.v || s.id), ['b', 'only-a']);
   assert.equal(c.weighins.length, 1);
+});
+
+test('progressGroups lists every exercise once, by split day, then the orphans', () => {
+  const programs = [
+    { id: 'b', name: 'Thursday', order: 1, exercises: [{ id: 'dl', name: 'Deadlift' }, { id: 'bench', name: 'Bench' }] },
+    { id: 'a', name: 'Tuesday', order: 0, exercises: [{ id: 'bench', name: 'Bench' }] },
+    { id: 'c', name: 'Empty', order: 2, exercises: [] },
+  ];
+  const g = progressGroups(programs, [{ ex: 'curl' }, { ex: 'bench' }, { ex: 'curl' }]);
+  assert.deepEqual(g.map((x) => [x.title, x.exercises.map((e) => e.id)]), [['Tuesday', ['bench']], ['Thursday', ['dl']], ['Other', ['curl']]]);
 });

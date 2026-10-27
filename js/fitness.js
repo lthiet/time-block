@@ -3,7 +3,7 @@
 // with the same per-record store as habits.
 import { IRON_LOG_FIREBASE } from '../config.js';
 import { createStore } from './journal.js?v=26'; // must match app.js's import, so both share one module
-import * as F from './fitness-logic.js?v=1';
+import * as F from './fitness-logic.js?v=2';
 
 const $ = (sel) => document.querySelector(sel);
 const SECTION_KEY = 'tb.section';
@@ -399,21 +399,23 @@ function renderRange() {
 
 function renderProgress() {
   const { h } = deps;
-  const prog = activeProgram();
   const today = deps.todayStr();
-  const exs = prog?.exercises || [];
-  const any = exs.some((e) => sessions.items.some((s) => s.ex === e.id));
-  const cards = exs.map((ex) => {
-    const hist = F.inRange(F.exerciseSessions(sessions.items, ex.id), ui.range, today);
-    if (!hist.length) return null;
-    const best = Math.max(...hist.map((s) => F.maxWeight(s.sets)));
-    return h('div', { class: 'fit-card' },
-      h('div', { class: 'fit-card-head' }, h('h3', {}, ex.name), h('span', { class: 'fit-last' }, `best ${best} kg · ${deps.plural(hist.length, 'session')}`)),
-      chart({ values: hist.map((s) => F.maxWeight(s.sets)), labels: hist.map((s) => fmtShort(s.date)), color: '--chart-lift', height: 120 }),
-    );
-  }).filter(Boolean);
-  $('#fitProgress').replaceChildren(...(cards.length ? cards : [h('p', { class: 'muted small empty' },
-    any ? 'No sessions in this range.' : 'Save a session to start the progression charts.')]));
+  // Every exercise with sessions in range, grouped by split day, not just the day being logged.
+  const out = [];
+  for (const g of F.progressGroups(programs.items, sessions.items)) {
+    const cards = g.exercises.map((ex) => {
+      const hist = F.inRange(F.exerciseSessions(sessions.items, ex.id), ui.range, today);
+      if (!hist.length) return null;
+      const best = Math.max(...hist.map((s) => F.maxWeight(s.sets)));
+      return h('div', { class: 'fit-card' },
+        h('div', { class: 'fit-card-head' }, h('h3', {}, ex.name), h('span', { class: 'fit-last' }, `best ${best} kg · ${deps.plural(hist.length, 'session')}`)),
+        chart({ values: hist.map((s) => F.maxWeight(s.sets)), labels: hist.map((s) => fmtShort(s.date)), color: '--chart-lift', height: 120 }),
+      );
+    }).filter(Boolean);
+    if (cards.length) out.push(h('h3', { class: 'fit-group' }, g.title), ...cards);
+  }
+  $('#fitProgress').replaceChildren(...(out.length ? out : [h('p', { class: 'muted small empty' },
+    sessions.items.length ? 'No sessions in this range.' : 'Save a session to start the progression charts.')]));
 }
 
 function logWeight(value) {
