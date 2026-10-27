@@ -744,6 +744,25 @@ export function heatmapWeeks(today, weeks) {
   return Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, i) => addDays(start, w * 7 + i)));
 }
 
+/** Monday-first weeks covering the whole month of `date`, from the Monday on or before the 1st to the Sunday on or after the last day. */
+export function monthWeeks(date) {
+  const first = `${date.slice(0, 8)}01`;
+  const last = addDays(addMonths(first, 1), -1);
+  const start = addDays(first, -((weekdayOf(first) + 6) % 7));
+  const weeks = [];
+  for (let d = start; d <= last; d = addDays(d, 7)) weeks.push(Array.from({ length: 7 }, (_, i) => addDays(d, i)));
+  return weeks;
+}
+
+/** `date` moved by `n` months, its day clamped to the end of a shorter month (Jan 31 + 1 → Feb 28/29). */
+export function addMonths(date, n) {
+  const [y, m, d] = date.split('-').map(Number);
+  const target = new Date(y, m - 1 + n, 1);
+  const days = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d, days));
+  return ymd(target);
+}
+
 // ---------------------------------------------------------------- distractions
 
 /** Entries grouped by local day, newest day first; newest entry first inside each day too. */

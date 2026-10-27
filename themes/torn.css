@@ -235,6 +235,25 @@ body { font-size: 15px; }
 .blk.draft.dragging, .blk.ghost { box-shadow: none; --shadow-off: 3px 6px; }
 .blk.stacked { box-shadow: none; } /* its shadow already sets it apart from the one beneath */
 
+/* Month view: a planner page ruled into days, every event a small post-it. */
+.mo-head { background: #fffef8; border-bottom: 1.5px solid rgb(43 43 43 / .5); }
+.mo-head span { font: 400 13px var(--font); letter-spacing: .02em; text-transform: none; color: var(--muted); }
+.mo-grid { border-left: 2px solid #f0a4a4; }
+.mo-day { border-right-color: rgb(43 43 43 / .22); border-bottom-color: rgb(47 95 179 / .35); gap: 3px; }
+.mo-dom { font: 700 17px/1 var(--font-display); color: var(--pen); }
+.mo-day.today { background: transparent; }
+.mo-day.today .mo-dom { background: var(--highlighter); color: var(--pen); }
+.mo-day .allday-chip { font-size: 12px; font-weight: 400; padding: 1px 4px 2px; line-height: 1.2; }
+.mo-time { font: 11px var(--font); opacity: .7; }
+.mo-ev.draft { --note: color-mix(in srgb, var(--c) 32%, #fffef8); }
+.mo-ev.draft::before {
+  background:
+    var(--curl-shade),
+    repeating-linear-gradient(-45deg, rgb(255 255 255 / .4) 0 5px, transparent 5px 10px),
+    var(--note);
+}
+.mo-day .allday-chip:hover { --note: color-mix(in srgb, var(--c) 55%, #fffef8); }
+
 /* Fitness dialogs reuse the popup without its "Note to self" heading. */
 .capture-box.fit-modal-box::before { content: none; }
 

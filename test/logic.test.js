@@ -6,7 +6,7 @@ import {
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
   stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
   tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit, isAvoid,
-  heatmapWeeks, combinedDayState, groupByDay, countByDay,
+  heatmapWeeks, monthWeeks, addMonths, combinedDayState, groupByDay, countByDay,
   flairFor, flairUrl, buildEventPatch,
 } from '../js/logic.js';
 
@@ -416,6 +416,33 @@ test('heatmapWeeks ends with the week holding today, Monday first', () => {
   assert.equal(w[2][0], '2026-09-21');
   assert.equal(w[2][6], TODAY);
   assert.equal(w[0][0], '2026-09-07');
+});
+
+test('monthWeeks covers the month in Monday-first weeks', () => {
+  const check = (date, n, firstDay, lastDay) => {
+    const w = monthWeeks(date);
+    assert.equal(w.length, n);
+    for (const week of w) {
+      assert.equal(week.length, 7);
+      assert.equal(new Date(`${week[0]}T00:00:00`).getDay(), 1);
+    }
+    assert.equal(w[0][0], firstDay);
+    assert.equal(w[n - 1][6], lastDay);
+  };
+  check('2026-09-27', 5, '2026-08-31', '2026-10-04'); // Sept 2026 starts on a Tuesday
+  check('2026-06-15', 5, '2026-06-01', '2026-07-05'); // starts on a Monday
+  check('2026-03-01', 6, '2026-02-23', '2026-04-05'); // starts on a Sunday: six weeks
+  check('2027-02-10', 4, '2027-02-01', '2027-02-28'); // 28 days from a Monday: exactly four
+  check('2028-02-29', 5, '2028-01-31', '2028-03-05'); // leap February
+});
+
+test('addMonths clamps the day and wraps years', () => {
+  assert.equal(addMonths('2026-01-31', 1), '2026-02-28');
+  assert.equal(addMonths('2028-01-31', 1), '2028-02-29');
+  assert.equal(addMonths('2026-03-31', -1), '2026-02-28');
+  assert.equal(addMonths('2026-12-15', 1), '2027-01-15');
+  assert.equal(addMonths('2026-01-15', -1), '2025-12-15');
+  assert.equal(addMonths('2026-10-27', 0), '2026-10-27');
 });
 
 test('groupByDay: newest first, across and inside days', () => {

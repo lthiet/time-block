@@ -488,6 +488,46 @@ input[type=checkbox] { accent-color: var(--accent-2); }
 .allday-chip { display: block; font-size: 11px; font-weight: 700; padding: 1px 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-allday .allday-chip { display: inline-block; }
 
+/* Month view: weeks of day cells, each listing its events; cells grow with their events and the panel scrolls. */
+/* The weeks share the panel's height when there's room; beyond that the panel scrolls. */
+.timeline.month { display: flex; flex-direction: column; cursor: default; padding-top: 0; }
+.mo-head {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--surface-solid);
+  border-bottom: var(--bw-sm) solid var(--border-strong);
+}
+.mo-head span { padding: 3px 4px; font: 600 10px var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.mo-grid { flex: 1 0 auto; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(76px, auto); background: var(--sheet); border-left: 1px solid var(--line); }
+.mo-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px 2px 4px;
+  container-type: inline-size;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .1s;
+}
+.mo-day:hover { background: var(--surface-2); }
+.mo-day.today { background: var(--today-col); }
+.mo-day.out > * { opacity: .45; }
+.mo-dom { align-self: flex-start; padding: 0 3px; font: 700 13px var(--font-display); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.mo-day.weekend .mo-dom { color: var(--muted); }
+.mo-day.today .mo-dom { background: var(--accent); color: var(--accent-ink); border-radius: var(--radius-sm); }
+.mo-day .allday-chip { font-size: 10.5px; padding: 0 4px; line-height: 1.45; cursor: pointer; }
+.mo-ev { font-weight: 600; }
+.mo-time { margin-right: 3px; font: 9.5px var(--font-mono); opacity: .8; }
+/* Narrow cells: the start time is left to the tooltip. */
+@container (max-width: 96px) { .mo-time { display: none; } }
+.mo-ev.draft { --c: var(--new); border-style: dashed; border-left-style: solid; }
+.mo-ev.draft.task { --c: var(--task); }
+
 .blk.draft {
   --c: var(--new);
   border: 2px dashed var(--c);
@@ -930,6 +970,9 @@ input.fit-in { width: 100%; padding: 4px 7px; font: 13px var(--font-mono); }
   .tl-dayhead .dow { letter-spacing: 0; }
   .tl-dayhead .dom { font-size: 13px; }
   .tl-dayhead.today .dom { padding: 0 5px; }
+  .mo-grid { grid-auto-rows: minmax(56px, auto); }
+  .mo-day { padding: 1px 1px 3px; }
+  .mo-day .allday-chip { padding: 0 2px; font-size: 10px; }
 }
 @container (max-width: 600px) {
   .grid-head { display: none; }

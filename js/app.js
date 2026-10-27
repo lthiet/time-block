@@ -119,7 +119,7 @@ function loadPersisted() {
       state.targetId = s.targetId || null;
       state.checkIds = Array.isArray(s.checkIds) ? s.checkIds : null;
       state.includeAllDay = !!s.includeAllDay;
-      state.view = s.calView === 'day' ? 'day' : 'week';
+      state.view = ['day', 'month'].includes(s.calView) ? s.calView : 'week';
       state.showDone = !!s.showDone;
       state.expanded = new Set(Array.isArray(s.expanded) ? s.expanded : []);
     }
@@ -568,7 +568,7 @@ function renderSettings() {
   $('#includeAllDay').checked = state.includeAllDay;
 }
 
-// ---------------------------------------------------------------- calendar panel (day / week)
+// ---------------------------------------------------------------- calendar panel (day / week / month)
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const gridCols = (n) => `repeat(${n}, minmax(0, 1fr))`;
@@ -579,16 +579,17 @@ function agendaDate() {
   return focused?.date || state.defaultDate;
 }
 
-/** Dates shown in the calendar panel: one day, or Monday–Sunday of that day's week. */
+/** Dates shown in the calendar panel: one day, Monday–Sunday of that day's week, or the weeks of its month. */
 function visibleDates() {
   const date = agendaDate();
+  if (state.view === 'month') return L.monthWeeks(date).flat();
   if (state.view !== 'week') return [date];
   const monday = L.addDays(date, -((L.weekdayOf(date) + 6) % 7));
   return Array.from({ length: 7 }, (_, i) => L.addDays(monday, i));
 }
 
 function setView(view) {
-  if (view !== 'day' && view !== 'week') return;
+  if (!['day', 'week', 'month'].includes(view)) return;
   state.view = view;
   persistSettings();
   loadAgendaDay();
@@ -659,6 +660,37 @@ function allDayChip(e) {
   return h('span', { class: 'allday-chip', style: { '--c': e.color || 'var(--muted)' }, title: `${e.title} · ${e.calendarName}\nClick for details`, ...eventAttrs(e) }, e.title);
 }
 
+/** One line in a month cell: an existing event (start time + title) or a new block. */
+function monthChip(i) {
+  if (i.kind === 'event') {
+    const time = `${fmtTime(i.ev.start)}–${fmtTime(i.ev.end)}`;
+    return h('span', { class: 'allday-chip mo-ev', style: { '--c': i.ev.color || 'var(--muted)' }, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}\nClick for details`, ...eventAttrs(i.ev) },
+      h('span', { class: 'mo-time' }, fmtTime(i.ev.start)), i.ev.title);
+  }
+  const task = isTaskRow(i.row);
+  return h('span', { class: `allday-chip mo-ev draft${task ? ' task' : ''}`, 'data-row-id': i.row.id, title: `${i.row.title || '(untitled)'}\n${fmtHM(i.row.start)}–${fmtHM(i.row.end)} · new ${task ? 'task' : 'block'}` },
+    h('span', { class: 'mo-time' }, fmtHM(i.row.start)), i.row.title || '(untitled)');
+}
+
+function renderMonth(dates, cols) {
+  const today = todayStr();
+  const month = agendaDate().slice(0, 7);
+  const tl = $('#timeline');
+  tl.classList.remove('week');
+  tl.classList.add('month');
+  tl.removeAttribute('title');
+  const head = h('div', { class: 'mo-head' }, [1, 2, 3, 4, 5, 6, 0].map((d) => h('span', {}, WEEKDAY_SHORT[d])));
+  const grid = h('div', { class: 'mo-grid' }, dates.map((d, ci) => {
+    const wd = L.weekdayOf(d);
+    const cls = ['mo-day', d.slice(0, 7) !== month && 'out', d === today && 'today', (wd === 0 || wd === 6) && 'weekend'].filter(Boolean).join(' ');
+    return h('div', { class: cls, 'data-date': d, title: 'Open this day' },
+      h('span', { class: 'mo-dom' }, String(Number(d.slice(8)))),
+      cols[ci].allDay.map(allDayChip),
+      [...cols[ci].items].sort((a, b) => a.s - b.s).map(monthChip));
+  }));
+  tl.replaceChildren(head, grid);
+}
+
 function blockEl(i, px) {
   const style = {
     top: `${px(i.s)}px`,
@@ -689,26 +721,42 @@ function blockEl(i, px) {
   h('div', { class: 'grip' }));
 }
 
+function renderLegend() {
+  const legendCals = state.calendars.filter((c) => (state.checkIds || []).includes(c.id));
+  $('#legend').replaceChildren(
+    h('span', {}, h('span', { class: 'swatch draft-swatch' }), 'New blocks'),
+    ...legendCals.map((c) => h('span', {}, h('span', { class: 'swatch', style: { background: c.color } }), c.name)),
+  );
+}
+
 function renderAgenda() {
   const dates = visibleDates();
+  const month = state.view === 'month';
   const week = dates.length > 1;
   const today = todayStr();
+  const unit = month ? 'month' : week ? 'week' : 'day';
   for (const b of document.querySelectorAll('.agenda .view-toggle button')) {
     b.classList.toggle('active', b.dataset.view === state.view);
     b.setAttribute('aria-pressed', b.dataset.view === state.view);
   }
-  $('#agendaTitle').textContent = week
-    ? `${fmtDay(dates[0])} – ${fmtDay(dates[dates.length - 1])}`
-    : dates[0] === today ? `Today · ${fmtDay(dates[0])}` : fmtDay(dates[0]);
-  $('#agendaPrev').setAttribute('aria-label', week ? 'Previous week' : 'Previous day');
-  $('#agendaNext').setAttribute('aria-label', week ? 'Next week' : 'Next day');
-  $('#agendaToday').classList.toggle('active', dates.includes(today));
+  $('#agendaTitle').textContent = month
+    ? new Date(`${agendaDate().slice(0, 7)}-01T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+    : week ? `${fmtDay(dates[0])} – ${fmtDay(dates[dates.length - 1])}`
+      : dates[0] === today ? `Today · ${fmtDay(dates[0])}` : fmtDay(dates[0]);
+  $('#agendaPrev').setAttribute('aria-label', `Previous ${unit}`);
+  $('#agendaNext').setAttribute('aria-label', `Next ${unit}`);
+  $('#agendaToday').classList.toggle('active', month ? agendaDate().slice(0, 7) === today.slice(0, 7) : dates.includes(today));
   $('#agendaNote').textContent = !state.signedIn ? 'Sign in to see your calendar here.'
     : dates.some((d) => !state.dayCache.has(d)) ? 'Loading…' : '';
 
   shownEvents.clear();
   const cols = dates.map(dayItems);
   $('#agendaAllDay').replaceChildren(...(week ? [] : cols[0].allDay.map(allDayChip)));
+  if (month) {
+    renderMonth(dates, cols);
+    renderLegend();
+    return;
+  }
 
   const ghost = drag?.mode === 'create' && drag.moved ? { ...drag, title: 'New block' } : taskGhost;
   let from = 8 * 60;
@@ -724,6 +772,8 @@ function renderAgenda() {
   const tl = $('#timeline');
   tl.dataset.from = from;
   tl.classList.toggle('week', week);
+  tl.classList.remove('month');
+  tl.title = 'Drag to add a block · click for a 1-hour block';
 
   const head = week ? h('div', { class: 'tl-head', style: { gridTemplateColumns: gridCols(dates.length) } },
     dates.map((d, ci) => h('div', { class: `tl-dayhead${d === today ? ' today' : ''}`, 'data-date': d, title: 'Open this day' },
@@ -761,11 +811,7 @@ function renderAgenda() {
     return;
   }
 
-  const legendCals = state.calendars.filter((c) => (state.checkIds || []).includes(c.id));
-  $('#legend').replaceChildren(
-    h('span', {}, h('span', { class: 'swatch draft-swatch' }), 'New blocks'),
-    ...legendCals.map((c) => h('span', {}, h('span', { class: 'swatch', style: { background: c.color } }), c.name)),
-  );
+  renderLegend();
 }
 
 // ---------------------------------------------------------------- timeline drag
@@ -784,6 +830,7 @@ function fitHour() {
   const root = document.documentElement;
   const tl = $('#timeline');
   const body = tl.querySelector('.tl-body');
+  if (!body) return false; // month view has no hour grid to fit
   let fit = parseFloat(getComputedStyle(root).getPropertyValue('--hour-min')) || 36;
   // Only the desktop layout gives the calendar a fixed height to fill; stacked (mobile) keeps the minimum.
   if (desktop.matches && body) {
@@ -867,9 +914,9 @@ function endDrag(tl, { cancel = false } = {}) {
 function wireTimelineDrag() {
   const tl = $('#timeline');
 
-  // Week view: clicking a day header opens that day.
+  // Week view: clicking a day header opens that day; month view: clicking a day cell.
   tl.addEventListener('click', (e) => {
-    const head = e.target.closest('.tl-dayhead');
+    const head = e.target.closest('.tl-dayhead, .mo-day');
     if (!head || e.target.closest('[data-ev]')) return;
     state.agendaDate = head.dataset.date;
     setView('day');
@@ -2085,7 +2132,8 @@ function wire() {
   $('#nextDay').addEventListener('click', () => setDefaultDate(L.addDays(state.defaultDate, 1)));
 
   const stepAgenda = (dir) => {
-    state.agendaDate = L.addDays(agendaDate(), dir * (state.view === 'week' ? 7 : 1));
+    state.agendaDate = state.view === 'month' ? L.addMonths(agendaDate(), dir)
+      : L.addDays(agendaDate(), dir * (state.view === 'week' ? 7 : 1));
     loadAgendaDay();
   };
   $('#agendaPrev').addEventListener('click', () => stepAgenda(-1));
