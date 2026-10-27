@@ -6,7 +6,7 @@ import {
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
   stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
   tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit, isAvoid,
-  heatmapWeeks, monthWeeks, addMonths, combinedDayState, groupByDay, countByDay,
+  heatmapWeeks, monthWeeks, weekBars, addMonths, combinedDayState, groupByDay, countByDay,
   flairFor, flairUrl, buildEventPatch,
 } from '../js/logic.js';
 
@@ -434,6 +434,31 @@ test('monthWeeks covers the month in Monday-first weeks', () => {
   check('2026-03-01', 6, '2026-02-23', '2026-04-05'); // starts on a Sunday: six weeks
   check('2027-02-10', 4, '2027-02-01', '2027-02-28'); // 28 days from a Monday: exactly four
   check('2028-02-29', 5, '2028-01-31', '2028-03-05'); // leap February
+});
+
+test('weekBars clips spans to the week and stacks overlapping ones', () => {
+  const week = monthWeeks('2026-10-15')[2]; // Mon Oct 12 .. Sun Oct 18
+  const trip = { from: '2026-10-15', to: '2026-10-21' }; // runs into next week
+  const conf = { from: '2026-10-10', to: '2026-10-13' }; // started last week
+  const bday = { from: '2026-10-14', to: '2026-10-14' };
+  const holiday = { from: '2026-10-16', to: '2026-10-16' };
+  const away = { from: '2026-11-01', to: '2026-11-02' };
+  const bars = weekBars(week, [trip, conf, bday, holiday, away]);
+  const of = (s) => bars.find((b) => b.item === s);
+  assert.equal(bars.length, 4); // `away` isn't in this week
+  assert.deepEqual({ ...of(conf), item: 0 }, { item: 0, col: 0, span: 2, lane: 0, contL: true, contR: false });
+  assert.deepEqual({ ...of(bday), item: 0 }, { item: 0, col: 2, span: 1, lane: 0, contL: false, contR: false });
+  assert.deepEqual({ ...of(trip), item: 0 }, { item: 0, col: 3, span: 4, lane: 0, contL: false, contR: true });
+  assert.equal(of(holiday).lane, 1); // under the trip
+});
+
+test('weekBars puts the longer of two same-day starts on top', () => {
+  const week = monthWeeks('2026-10-15')[2];
+  const one = { from: '2026-10-12', to: '2026-10-12' };
+  const three = { from: '2026-10-12', to: '2026-10-14' };
+  const bars = weekBars(week, [one, three]);
+  assert.equal(bars.find((b) => b.item === three).lane, 0);
+  assert.equal(bars.find((b) => b.item === one).lane, 1);
 });
 
 test('addMonths clamps the day and wraps years', () => {

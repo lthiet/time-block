@@ -680,15 +680,47 @@ function renderMonth(dates, cols) {
   tl.classList.add('month');
   tl.removeAttribute('title');
   const head = h('div', { class: 'mo-head' }, [1, 2, 3, 4, 5, 6, 0].map((d) => h('span', {}, WEEKDAY_SHORT[d])));
-  const grid = h('div', { class: 'mo-grid' }, dates.map((d, ci) => {
-    const wd = L.weekdayOf(d);
-    const cls = ['mo-day', d.slice(0, 7) !== month && 'out', d === today && 'today', (wd === 0 || wd === 6) && 'weekend'].filter(Boolean).join(' ');
-    return h('div', { class: cls, 'data-date': d, title: 'Open this day' },
-      h('span', { class: 'mo-dom' }, String(Number(d.slice(8)))),
-      cols[ci].allDay.map(allDayChip),
-      [...cols[ci].items].sort((a, b) => a.s - b.s).map(monthChip));
+  const weeks = [];
+  for (let w = 0; w < dates.length; w += 7) weeks.push(monthWeek(dates.slice(w, w + 7), cols.slice(w, w + 7), month, today));
+  tl.replaceChildren(head, h('div', { class: 'mo-grid' }, weeks));
+}
+
+/**
+ * One week of the month grid. All-day events are bars across the days they cover, stacked in rows
+ * under the day numbers; each day's timed events and new blocks are listed below them. Every cell is a
+ * grid item of its own, so the bars can span columns: a background per day (the click target), its
+ * number, the bars, then its list.
+ */
+function monthWeek(week, cols, month, today) {
+  const allDay = new Map();
+  for (const c of cols) for (const e of c.allDay) allDay.set(`${e.calendarId}\n${e.id}`, e);
+  const bars = L.weekBars(week, [...allDay.values()].map((e) => {
+    const from = L.ymd(e.start);
+    const to = L.addDays(L.ymd(e.end), -1); // the end date is exclusive
+    return { ev: e, from, to: to < from ? from : to };
   }));
-  tl.replaceChildren(head, grid);
+  const lanes = bars.reduce((n, b) => Math.max(n, b.lane + 1), 0);
+  const kids = [];
+  week.forEach((d, i) => {
+    const wd = L.weekdayOf(d);
+    const flags = [d.slice(0, 7) !== month && 'out', d === today && 'today', (wd === 0 || wd === 6) && 'weekend'].filter(Boolean);
+    const at = { gridColumn: i + 1 };
+    kids.push(
+      h('div', { class: ['mo-day', ...flags].join(' '), 'data-date': d, title: 'Open this day', style: { ...at, gridRow: '1 / -1' } }),
+      h('span', { class: ['mo-dom', ...flags].join(' '), style: { ...at, gridRow: 1 } }, String(Number(d.slice(8)))),
+      h('div', { class: ['mo-list', ...flags].join(' '), style: { ...at, gridRow: lanes + 2 } },
+        [...cols[i].items].sort((a, b) => a.s - b.s).map(monthChip)),
+    );
+  });
+  for (const b of bars) {
+    const chip = allDayChip(b.item.ev);
+    chip.classList.add('mo-bar');
+    chip.classList.toggle('cont-l', b.contL);
+    chip.classList.toggle('cont-r', b.contR);
+    Object.assign(chip.style, { gridColumn: `${b.col + 1} / span ${b.span}`, gridRow: b.lane + 2 });
+    kids.push(chip);
+  }
+  return h('div', { class: 'mo-week', style: { gridTemplateRows: `auto${' auto'.repeat(lanes)} 1fr` } }, kids);
 }
 
 function blockEl(i, px) {

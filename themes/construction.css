@@ -163,8 +163,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .mo-day { border-color: rgb(0 0 0 / .18); }
 .mo-dom { font: 17px var(--font-term); line-height: 1; }
 .mo-day.today { box-shadow: inset 0 -4px 0 var(--orange); }
-.mo-day.today .mo-dom { outline: var(--bw-sm) solid var(--ink); }
-.mo-day .allday-chip:hover { box-shadow: 2px 2px 0 var(--c); }
+.mo-dom.today { outline: var(--bw-sm) solid var(--ink); }
+.mo-week .allday-chip:hover { box-shadow: 2px 2px 0 var(--c); }
 
 /* Board */
 .lane.drop-target { box-shadow: 4px 4px 0 var(--blue); }
