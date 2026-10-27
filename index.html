@@ -10,17 +10,17 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=41">
-  <link rel="stylesheet" id="skin" href="themes/construction.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=43">
+  <link rel="stylesheet" id="skin" href="themes/construction.css?v=18">
   <script>
     // Apply the saved skin before first paint; keep the pattern and the version (?v=) in sync with js/skin.js.
     try {
       const s = localStorage.getItem('tb.skin');
-      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=15`;
+      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=18`;
     } catch {}
   </script>
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=34"></script>
+  <script type="module" src="js/app.js?v=38"></script>
 </head>
 <body>
   <header class="topbar">
@@ -148,6 +148,7 @@
         <div class="view-toggle" role="group" aria-label="Calendar view">
           <button type="button" data-view="day">Day</button>
           <button type="button" data-view="week">Week</button>
+          <button type="button" data-view="month">Month</button>
         </div>
       </div>
       <div id="agendaAllDay" class="agenda-allday"></div>
