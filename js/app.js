@@ -702,6 +702,7 @@ function renderAgenda() {
     : dates[0] === today ? `Today · ${fmtDay(dates[0])}` : fmtDay(dates[0]);
   $('#agendaPrev').setAttribute('aria-label', week ? 'Previous week' : 'Previous day');
   $('#agendaNext').setAttribute('aria-label', week ? 'Next week' : 'Next day');
+  $('#agendaToday').classList.toggle('active', dates.includes(today));
   $('#agendaNote').textContent = !state.signedIn ? 'Sign in to see your calendar here.'
     : dates.some((d) => !state.dayCache.has(d)) ? 'Loading…' : '';
 
@@ -2064,14 +2065,8 @@ function setDefaultDate(date, { moveRows = true } = {}) {
   });
   state.agendaDate = null;
   $('#defaultDate').value = date;
-  renderDateChips();
   onRowsChanged();
   loadAgendaDay();
-}
-
-function renderDateChips() {
-  $('#todayBtn').classList.toggle('active', state.defaultDate === todayStr());
-  $('#tomorrowBtn').classList.toggle('active', state.defaultDate === L.addDays(todayStr(), 1));
 }
 
 function applyHash() {
@@ -2088,8 +2083,6 @@ function wire() {
   $('#defaultDate').addEventListener('change', (e) => setDefaultDate(e.target.value));
   $('#prevDay').addEventListener('click', () => setDefaultDate(L.addDays(state.defaultDate, -1)));
   $('#nextDay').addEventListener('click', () => setDefaultDate(L.addDays(state.defaultDate, 1)));
-  $('#todayBtn').addEventListener('click', () => setDefaultDate(todayStr()));
-  $('#tomorrowBtn').addEventListener('click', () => setDefaultDate(L.addDays(todayStr(), 1)));
 
   const stepAgenda = (dir) => {
     state.agendaDate = L.addDays(agendaDate(), dir * (state.view === 'week' ? 7 : 1));
@@ -2097,6 +2090,10 @@ function wire() {
   };
   $('#agendaPrev').addEventListener('click', () => stepAgenda(-1));
   $('#agendaNext').addEventListener('click', () => stepAgenda(1));
+  $('#agendaToday').addEventListener('click', () => {
+    state.agendaDate = todayStr();
+    loadAgendaDay();
+  });
   for (const b of document.querySelectorAll('.agenda .view-toggle button')) {
     b.addEventListener('click', () => setView(b.dataset.view));
   }
@@ -2192,7 +2189,6 @@ async function main() {
   wire();
   wireEventCard();
   applyHash();
-  renderDateChips();
   renderAccount();
   renderSettings();
   renderAll();
