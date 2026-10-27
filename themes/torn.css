@@ -185,8 +185,13 @@ body { font-size: 15px; }
   --note: color-mix(in srgb, var(--c) 42%, #fffef8);
   --note-edge: none;                 /* set per block by js/postit.js */
   --note-base: none;
-  --curl-at: 100% 100%;
-  --curl: 10px;
+  --curl-r: 0 0;                     /* shading box at each bottom corner, twice its fold */
+  --curl-l: 0 0;
+  /* A lifted corner: a bright rim along the fold, then the paper darkening as it bends up, fading
+     back into the flat note. The fold crosses each box a quarter of the way in from its corner. */
+  --curl-shade:
+    linear-gradient(to top left, transparent 22%, rgb(255 255 255 / .8) 26%, rgb(255 255 255 / .25) 34%, rgb(70 55 20 / .16) 44%, transparent 72%) right bottom / var(--curl-r) no-repeat,
+    linear-gradient(to top right, transparent 22%, rgb(255 255 255 / .8) 26%, rgb(255 255 255 / .25) 34%, rgb(70 55 20 / .16) 44%, transparent 72%) left bottom / var(--curl-l) no-repeat;
   --lift: 1px 2px;
   isolation: isolate;
   font-family: var(--font);
@@ -208,13 +213,21 @@ body { font-size: 15px; }
   z-index: -1;
   clip-path: var(--note-edge);
   background:
-    /* the curled corner catches the light along its fold and darkens beneath it */
-    radial-gradient(circle at var(--curl-at), rgb(255 255 255 / .65) 0 calc(var(--curl) * .5), rgb(0 0 0 / .12) calc(var(--curl) * .55), transparent var(--curl)),
+    var(--curl-shade),
     /* the gummed strip along the top is a touch glossier */
     linear-gradient(rgb(255 255 255 / .3), transparent 6px),
     var(--note);
 }
-.blk::after, .allday-chip::after { z-index: -2; clip-path: var(--note-base); background: rgb(60 50 30 / .28); translate: var(--lift); }
+/* The shadow is the flat outline; it deepens where a corner has lifted off the page. */
+.blk::after, .allday-chip::after {
+  z-index: -2;
+  clip-path: var(--note-base);
+  translate: var(--lift);
+  background:
+    linear-gradient(to top left, rgb(60 50 30 / .25), transparent 50%) right bottom / var(--curl-r) no-repeat,
+    linear-gradient(to top right, rgb(60 50 30 / .25), transparent 50%) left bottom / var(--curl-l) no-repeat,
+    rgb(60 50 30 / .28);
+}
 .blk { padding-top: 4px; }
 .blk b { font-weight: 400; font-size: 13px; }
 .blk .blk-time { font: 11px var(--font); opacity: .75; }
@@ -222,7 +235,7 @@ body { font-size: 15px; }
 .blk.draft, .blk.ghost { border: 0; --note: color-mix(in srgb, var(--c) 32%, #fffef8); }
 .blk.draft::before, .blk.ghost::before {
   background:
-    radial-gradient(circle at var(--curl-at), rgb(255 255 255 / .65) 0 calc(var(--curl) * .5), rgb(0 0 0 / .12) calc(var(--curl) * .55), transparent var(--curl)),
+    var(--curl-shade),
     repeating-linear-gradient(-45deg, rgb(255 255 255 / .4) 0 5px, transparent 5px 10px),
     var(--note);
 }

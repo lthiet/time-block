@@ -31,8 +31,9 @@ const at = (pct, px) => `calc(${r2(pct)}% ${px < 0 ? '-' : '+'} ${r2(Math.abs(px
  * @param curl     [min, max] px a bottom corner may curl up
  * @param across   stretches along the top and bottom edges
  * @param down     stretches down each side
- * @returns { edge, base, curlAt, curl } — `edge` is the note's clip-path, `base` the same outline
- *   with flat corners (for the shadow left on the board), `curlAt`/`curl` place the curl's shading.
+ * @returns { edge, base, curlR, curlL } — `edge` is the note's clip-path, `base` the same outline
+ *   with flat corners (for the shadow left on the page), `curlR`/`curlL` the [across, up] px each
+ *   bottom corner is lifted by (0 when it lies flat), to place the curl's shading.
  */
 export function noteOutline(seed, { wobble = 1, curl = [8, 20], across = 7, down = 7 } = {}) {
   const rand = rng(seed);
@@ -64,8 +65,9 @@ export function noteOutline(seed, { wobble = 1, curl = [8, 20], across = 7, down
     const n = 5;
     for (let i = 0; i <= n; i++) {
       const t = i / n;
-      // Quadratic bezier from the bottom edge to the side, bowed out toward the corner.
-      const bx = c, by = 0, cx = c * 0.18, cy = c * ratio * 0.18, ex = 0, ey = c * ratio;
+      // Quadratic bezier from the bottom edge to the side, bowed slightly toward the corner
+      // (a control point at .5 would be a straight fold).
+      const bx = c, by = 0, cx = c * 0.38, cy = c * ratio * 0.38, ex = 0, ey = c * ratio;
       const x = (1 - t) ** 2 * bx + 2 * (1 - t) * t * cx + t ** 2 * ex;
       const y = (1 - t) ** 2 * by + 2 * (1 - t) * t * cy + t ** 2 * ey;
       pts.push(isRight ? `${at(100, -x)} ${at(100, -y)}` : `${at(0, x)} ${at(100, -y)}`);
@@ -84,8 +86,8 @@ export function noteOutline(seed, { wobble = 1, curl = [8, 20], across = 7, down
   return {
     edge: `polygon(${curled.join(', ')})`,
     base: `polygon(${flat.join(', ')})`,
-    curlAt: rightBig ? '100% 100%' : '0% 100%',
-    curl: `${r2(big * 2.2)}px`,
+    curlR: [r2(cR), r2(cR * ratioR)],
+    curlL: [r2(cL), r2(cL * ratioL)],
   };
 }
 
@@ -105,8 +107,9 @@ function dress(el, i) {
   const o = noteOutline(seedFor(el, i), sizeFor(el));
   el.style.setProperty('--note-edge', o.edge);
   el.style.setProperty('--note-base', o.base);
-  el.style.setProperty('--curl-at', o.curlAt);
-  el.style.setProperty('--curl', o.curl);
+  // The shading box is twice the fold, so the fold runs across it a quarter of the way in.
+  el.style.setProperty('--curl-r', `${o.curlR[0] * 2}px ${o.curlR[1] * 2}px`);
+  el.style.setProperty('--curl-l', `${o.curlL[0] * 2}px ${o.curlL[1] * 2}px`);
 }
 
 let observer = null;
