@@ -190,3 +190,6 @@ body { font-size: 15px; }
 .blk:hover { box-shadow: none; background: color-mix(in srgb, var(--c) 52%, #fffef8); }
 /* A scrap laid over an earlier one gets a pale edge on its left (inset, since the torn mask clips anything outside it). */
 .blk.stacked { box-shadow: inset 2px 0 0 #fffef8; }
+
+/* Fitness dialogs reuse the popup without its "Note to self" heading. */
+.capture-box.fit-modal-box::before { content: none; }
