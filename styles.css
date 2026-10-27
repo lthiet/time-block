@@ -71,6 +71,18 @@
   --btn-tracking: 0;
   --label-font: 600 10px var(--font-mono);
 
+  /* Charts (Fitness), read by the canvas code in js/fitness.js */
+  --chart-font: 10px var(--font-mono);   /* canvas font shorthand for the labels */
+  --chart-lift: var(--info);             /* progress lines */
+  --chart-weight: var(--ok);             /* body weight line */
+  --chart-trend: var(--text);            /* dashed 7-day trend */
+  --chart-grid: var(--line);
+  --chart-label: var(--label);
+  --chart-fill: .12;                     /* opacity of the area under the line; 0 for none */
+  --chart-mark: none;                    /* or a colour: a highlighter stroke under the line */
+  --chart-point: square;                 /* square | ring */
+  --chart-wobble: 0;                     /* px of hand-drawn wobble; 0 is ruler-straight */
+
   --hour: 36px;      /* set at runtime to stretch the calendar to the panel height */
   --hour-min: 36px;
   color-scheme: light;
@@ -835,6 +847,57 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 .ev-when { display: grid; grid-template-columns: 1fr 76px; gap: 6px 8px; }
 .ev-when.all-day { grid-template-columns: 1fr 1fr; }
 
+/* ---------- Fitness (lifting log, progress, body weight) ---------- */
+.layout.fitness { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fit-tabs { display: none; }
+.fit-sub { font: 11px var(--font); text-transform: none; letter-spacing: 0; text-shadow: none; }
+.fit-data-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.fit-programs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.fit-programs .fit-edit { margin-left: auto; border-style: dashed; }
+.fit-card { background: var(--surface-solid); border: var(--bw-sm) solid var(--border); border-radius: var(--radius-sm); padding: 8px; margin-bottom: 8px; }
+.fit-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; min-width: 0; }
+.fit-card-head h3 { margin: 0; font: 700 13px/1.2 var(--font-display); white-space: nowrap; }
+.fit-last { font: var(--term-size)/1.2 var(--font-term); color: var(--label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fit-set { display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(0, 1fr) 26px; gap: 4px; align-items: center; margin-bottom: 4px; }
+.fit-set-head span { font: var(--label-font); text-transform: uppercase; letter-spacing: .1em; color: var(--label); }
+.fit-num { font: var(--term-size) var(--font-term); color: var(--label); text-align: center; }
+input.fit-in { width: 100%; padding: 4px 7px; font: 13px var(--font-mono); }
+.fit-unit { position: relative; display: block; min-width: 0; }
+.fit-unit input.fit-in { padding-right: 26px; }
+.fit-unit span { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font: 10px var(--font-mono); color: var(--muted); pointer-events: none; }
+.fit-add { display: block; margin-top: 2px; font-size: 12px; }
+.fit-save { width: 100%; padding: 7px 14px; }
+.btn.fit-save.saved { background: var(--ok); border-color: var(--ok); color: #fff; }
+.fit-chart { display: flex; }
+.fit-axis, .fit-plot { display: block; }
+.fit-axis { flex: none; }
+.fit-plot-area { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.fit-log-row { display: flex; gap: 6px; }
+.fit-log-row .fit-unit { flex: 1; }
+.fit-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.fit-chip { display: inline-flex; align-items: center; gap: 4px; }
+.fit-chip-x { border: 0; background: none; padding: 0 2px; font-size: 13px; line-height: 1; color: var(--muted); cursor: pointer; }
+.fit-chip-x:hover { color: var(--bad); }
+.mono { font-family: var(--font-mono); }
+
+/* Split editor and raw data */
+.fit-modal { padding-top: 6vh; }
+.capture-box.fit-modal-box { width: min(560px, calc(100% - 8px)); max-height: 88dvh; display: flex; flex-direction: column; }
+.fit-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fit-modal-head .panel-title { margin: 0; }
+.fit-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 8px -4px 0; padding: 0 4px; }
+.fit-modal-foot { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: var(--bw-sm) solid var(--border); }
+.fit-modal-box input[type=text], .fit-modal-box input[type=date] { width: 100%; padding: 4px 7px; font: 13px var(--font); }
+.fit-modal-box input.mono, .fit-modal-box input[type=date] { font: 12px var(--font-mono); }
+.fit-day-head { display: flex; gap: 4px; margin-bottom: 6px; }
+.fit-day-head input.fit-day-name { flex: 1; font-weight: 700; }
+.fit-ex-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 26px; gap: 4px; align-items: center; margin-bottom: 4px; }
+.fit-add-day { width: 100%; margin-bottom: 8px; border-style: dashed; }
+.fit-raw-tabs { margin-top: 8px; align-self: flex-start; }
+.fit-raw { display: grid; grid-template-columns: 140px minmax(0, 1fr) 26px; gap: 4px; align-items: center; margin-bottom: 4px; }
+.fit-raw-head span { font: var(--label-font); text-transform: uppercase; letter-spacing: .1em; color: var(--label); }
+.fit-raw-select { width: 100%; margin-bottom: 8px; }
+
 /* ---------- Narrow screens ---------- */
 /* Desktop: both panels fill the screen height; the block list and calendar scroll inside them. */
 @media (min-width: 901px) {
@@ -847,9 +910,17 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
   .tasks .lanes, .habit-list, .dist-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .agenda { position: relative; top: auto; }
   .agenda .timeline { flex: 1 1 auto; min-height: 0; max-height: none; }
+  .fit-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-right: -6px; padding-right: 6px; }
 }
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
+  .layout.fitness { grid-template-columns: minmax(0, 1fr); }
+  /* Phones show one fitness panel at a time, picked with the tabs. */
+  .fit-tabs { display: flex; }
+  .fit-tabs button { flex: 1; padding: 6px 0; }
+  .fitness[data-tab=lifting] > .panel:not([data-tab=lifting]),
+  .fitness[data-tab=progress] > .panel:not([data-tab=progress]),
+  .fitness[data-tab=weight] > .panel:not([data-tab=weight]) { display: none; }
   .lane-list { max-height: 40vh; overflow-y: auto; }
   .agenda { position: relative; top: auto; }
   .timeline { max-height: none; }

@@ -10,17 +10,17 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=38">
-  <link rel="stylesheet" id="skin" href="themes/construction.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=40">
+  <link rel="stylesheet" id="skin" href="themes/construction.css?v=12">
   <script>
     // Apply the saved skin before first paint; keep the pattern and the version (?v=) in sync with js/skin.js.
     try {
       const s = localStorage.getItem('tb.skin');
-      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=10`;
+      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=12`;
     } catch {}
   </script>
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=29"></script>
+  <script type="module" src="js/app.js?v=31"></script>
 </head>
 <body>
   <header class="topbar">
@@ -28,6 +28,11 @@
       <img src="icon.svg?v=5" alt="" width="22" height="22">
       <span>Life Tracker</span>
     </div>
+    <div class="view-toggle section-toggle" id="sectionToggle" role="group" aria-label="Section">
+      <button type="button" data-section="plan">Plan</button>
+      <button type="button" data-section="fitness">Fitness</button>
+    </div>
+    <div class="view-toggle" id="fitRange" role="group" aria-label="Chart range" hidden></div>
     <div class="datebar" role="group" aria-label="Planning date">
       <button type="button" class="icon-btn" id="prevDay" title="Previous day (Alt+←)" aria-label="Previous day">‹</button>
       <input type="date" id="defaultDate" aria-label="Planning date">
@@ -47,7 +52,7 @@
     <strong>Setup needed:</strong> paste your OAuth Client ID into <code>config.js</code>. See the README for the 5-minute Google Cloud setup.
   </div>
 
-  <main class="layout">
+  <main class="layout" id="plan">
     <div class="stack">
       <section class="panel habits" aria-label="Habits">
         <h2 class="panel-title">Habits <span class="badge" id="habitsBadge"></span></h2>
@@ -159,6 +164,41 @@
     </aside>
   </main>
 
+  <main class="layout fitness" id="fitness" data-tab="lifting" hidden>
+    <div class="view-toggle fit-tabs" id="fitTabs" role="group" aria-label="Fitness panel">
+      <button type="button" data-tab="lifting">Lifting</button>
+      <button type="button" data-tab="progress">Progress</button>
+      <button type="button" data-tab="weight">Weight</button>
+    </div>
+    <section class="panel fit-lifting" data-tab="lifting" aria-label="Lifting">
+      <h2 class="panel-title">Lifting <span class="badge" id="fitDay"></span></h2>
+      <details class="settings" id="fitData">
+        <summary><span>Splits &amp; data</span> <span class="muted" id="fitDataSummary"></span></summary>
+        <div class="settings-body">
+          <div class="fit-data-actions">
+            <button type="button" class="btn" id="fitEditSplits">Edit splits</button>
+            <button type="button" class="btn" id="fitRawData">Raw data</button>
+            <button type="button" class="btn" id="fitImport">Import from Iron Log</button>
+          </div>
+          <div id="fitImportNote" class="muted small" role="status"></div>
+        </div>
+      </details>
+      <div id="fitPrograms" class="fit-programs" role="group" aria-label="Split day"></div>
+      <div id="fitLog" class="fit-scroll"></div>
+    </section>
+    <section class="panel fit-progress" data-tab="progress" aria-label="Progress">
+      <h2 class="panel-title">Progress <span class="muted small fit-sub">max weight per session, kg</span></h2>
+      <div id="fitProgress" class="fit-scroll"></div>
+    </section>
+    <section class="panel fit-weight" data-tab="weight" aria-label="Body weight">
+      <h2 class="panel-title">Body weight <span class="badge" id="fitLatest"></span></h2>
+      <div id="fitWeight" class="fit-scroll"></div>
+    </section>
+  </main>
+
+  <div id="fitModal" class="capture fit-modal" hidden>
+    <div class="capture-box fit-modal-box" role="dialog" aria-modal="true"></div>
+  </div>
 
   <div id="capture" class="capture" hidden>
     <div class="capture-box" role="dialog" aria-label="Log a distraction">

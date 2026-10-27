@@ -46,7 +46,7 @@ function cleanDistractions(list) {
 }
 
 /** A list of records kept in localStorage and in `file` on Drive, merged per record like the task board. */
-function createStore({ key, file, clean, combine, render }) {
+export function createStore({ key, file, clean, combine, render }) {
   const st = { items: [], deleted: {}, saved: [], status: 'off', error: '', timer: null, running: null, again: false };
   const docKey = (d) => JSON.stringify([d.items, d.deleted]);
   const doc = () => ({ items: st.items, deleted: st.deleted });

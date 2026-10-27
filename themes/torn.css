@@ -74,6 +74,19 @@
   --agenda-title-font: 700 28px/1 var(--font-display);
   --btn-font: 400 15px var(--font);
   --label-font: 400 13px var(--font);
+
+  /* Charts are drawn by hand on graph paper (see .fit-chart): blue or red pen over a highlighter
+     stroke, a little circle round each reading, a pencil trend line and handwritten labels. */
+  --chart-font: 14px "Patrick Hand", "Comic Sans MS", cursive;
+  --chart-lift: var(--blue-pen);
+  --chart-weight: var(--red-pen);
+  --chart-trend: #55524b;
+  --chart-grid: rgb(47 95 179 / .35);
+  --chart-label: var(--blue-pen);
+  --chart-fill: 0;
+  --chart-mark: rgb(255 240 74 / .75);
+  --chart-point: ring;
+  --chart-wobble: 1.1;
 }
 
 body { font-size: 15px; }
@@ -190,3 +203,22 @@ body { font-size: 15px; }
 .blk:hover { box-shadow: none; background: color-mix(in srgb, var(--c) 52%, #fffef8); }
 /* A scrap laid over an earlier one gets a pale edge on its left (inset, since the torn mask clips anything outside it). */
 .blk.stacked { box-shadow: inset 2px 0 0 #fffef8; }
+
+/* Fitness dialogs reuse the popup without its "Note to self" heading. */
+.capture-box.fit-modal-box::before { content: none; }
+
+/* ---------- Fitness ---------- */
+.panel.fit-lifting { --paper: #fffef8; rotate: -.35deg; --tape-x: 47%; --tape-rot: -2.8deg; }
+.panel.fit-progress { --paper: #fbf6e9; rotate: .3deg; --tape-x: 53%; --tape-rot: 3.1deg; }
+.panel.fit-weight { --paper: #fffef8; rotate: -.2deg; --tape-x: 50%; --tape-rot: -1.4deg; }
+.fit-card { background: #ffffff; }
+.fit-card-head h3 { font: 700 22px/1 var(--font-display); }
+.fit-last { font-size: 14px; }
+/* Each chart is a scrap of graph paper. */
+.fit-chart {
+  background:
+    linear-gradient(rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(90deg, rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 12px 12px,
+    #fffef8;
+  border: 1px solid rgb(47 95 179 / .25);
+}

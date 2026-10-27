@@ -13,3 +13,13 @@ export const TASK_DURATION = 30;
 
 // Calendar that tasks dragged from the task board are saved to (matched by name, case-insensitive).
 export const TASKS_CALENDAR_NAME = 'Tasks';
+
+// Iron Log's Firebase project, read once by "Import from Iron Log" in the Fitness section.
+// Firebase web config is public by design; access is limited by the database rules to your own account.
+export const IRON_LOG_FIREBASE = {
+  apiKey: 'AIzaSyCjFSCgqRqHIae23iy72-E7hJy9c-ktsls',
+  authDomain: 'iron-log-3c398.firebaseapp.com',
+  databaseURL: 'https://iron-log-3c398-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'iron-log-3c398',
+  appId: '1:457944842806:web:1018c44e54874fc1820e97',
+};
