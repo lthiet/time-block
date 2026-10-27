@@ -1,5 +1,5 @@
-// Post-it skin: every note gets its own procedurally generated outline. Its edges waver a little,
-// and its bottom corners curl up off the board by different amounts. The outline is a clip-path
+// Post-it calendar blocks (Torn paper skin): every block gets its own procedurally generated outline.
+// Its edges waver a little, and its bottom corners curl up off the page by different amounts. The outline is a clip-path
 // polygon in percentages plus pixels, so it fits whatever size the note is.
 
 // Small seeded PRNG (mulberry32), so a note keeps the same outline each time it's re-rendered.
@@ -89,19 +89,16 @@ export function noteOutline(seed, { wobble = 1, curl = [8, 20], across = 7, down
   };
 }
 
-const NOTES = '.panel, .capture-box, .blk, .allday-chip';
+const NOTES = '.blk, .allday-chip';
 
 function seedFor(el, i) {
-  return hashSeed(el.dataset.ev || el.dataset.rowId || `${el.className.split(' ').slice(0, 2).join(' ')}#${i}`);
+  return hashSeed(el.dataset.ev || el.dataset.rowId || `#${i}`);
 }
 
 function sizeFor(el) {
-  if (el.matches('.blk, .allday-chip')) {
-    const h = parseFloat(el.style.height) || 20;
-    const max = Math.min(8, h * 0.2);
-    return { wobble: 0.5, curl: [Math.min(3, max), max], across: 2, down: 3 };
-  }
-  return { wobble: 1.2, curl: [10, 26], across: 9, down: 9 };
+  const h = parseFloat(el.style.height) || 20; // all-day chips have no set height
+  const max = Math.min(8, h * 0.2);
+  return { wobble: 0.5, curl: [Math.min(3, max), max], across: 2, down: 3 };
 }
 
 function dress(el, i) {

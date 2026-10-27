@@ -16,7 +16,7 @@
     // Apply the saved skin before first paint; keep the pattern and the version (?v=) in sync with js/skin.js.
     try {
       const s = localStorage.getItem('tb.skin');
-      if (s && /^(construction|torn|postit)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=13`;
+      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=13`;
     } catch {}
   </script>
   <script src="https://accounts.google.com/gsi/client" async></script>

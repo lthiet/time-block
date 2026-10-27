@@ -5,7 +5,6 @@ import { setPostit } from './postit.js?v=1';
 export const SKINS = [
   { id: 'construction', name: 'Construction' },
   { id: 'torn', name: 'Torn paper' },
-  { id: 'postit', name: 'Post-it' },
 ];
 export const DEFAULT_SKIN = 'construction';
 export const SKIN_KEY = 'tb.skin';
@@ -48,7 +47,7 @@ export function applySkin(id) {
     }
   }
   document.documentElement.dataset.skin = skin;
-  setPostit(skin === 'postit'); // its notes' outlines are generated, not drawn in CSS
+  setPostit(skin === 'torn'); // its calendar blocks are post-its with generated outlines
   try {
     localStorage.setItem(SKIN_KEY, skin);
   } catch {}
