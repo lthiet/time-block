@@ -770,11 +770,6 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
 .hm-cell.dist-cell.zero { background: var(--surface-2); outline-color: var(--line); }
 .hm-cell.dist-cell.today { outline: 2px solid var(--accent); outline-offset: -2px; }
 .hm-cell.picked { outline: 2px solid var(--accent-2); outline-offset: -2px; }
-.shortcut-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: var(--bw-sm) solid var(--border); color: var(--muted); }
-.shortcut-setting .chip-btn.recording { background: var(--accent); color: var(--accent-ink); animation: blink-rec 1s steps(1) infinite; }
-@keyframes blink-rec { 50% { background: var(--accent-2); } }
-.shortcut-note { flex: 1 0 100%; color: var(--bad); }
-.shortcut-note:empty { display: none; }
 
 /* Capture popup */
 .capture {
@@ -798,7 +793,6 @@ body.task-dragging, body.task-dragging * { cursor: grabbing !important; user-sel
   padding: 10px;
 }
 .capture-box input { width: 100%; padding: 8px 10px; font: 15px var(--font-mono); caret-color: var(--accent-2); }
-.capture-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; }
 
 /* Event details card (click an existing event on the calendar) */
 [data-ev] { cursor: pointer; }

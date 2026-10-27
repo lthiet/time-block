@@ -6,7 +6,7 @@ import {
   occurrenceDates, firstOccurrence, buildRRule, describeRepeat, waitingAge, moveTask,
   stampTaskChanges, mergeTaskDocs, nestTask, removeTask, effectiveParentId, subtasksOf, taskBlockTitle,
   tasksById, alignSubtasks, mergeRecordDocs, habitDayState, canToggleDay, toggleCheck, habitStats, mergeHabit, isAvoid,
-  heatmapWeeks, combinedDayState, groupByDay, countByDay, comboFromEvent, formatCombo, shortcutProblem,
+  heatmapWeeks, combinedDayState, groupByDay, countByDay,
   flairFor, flairUrl, buildEventPatch,
 } from '../js/logic.js';
 
@@ -425,30 +425,6 @@ test('groupByDay: newest first, across and inside days', () => {
   ]);
   assert.deepEqual(g.map((d) => d.date), ['2026-09-27', '2026-09-26']);
   assert.deepEqual(g[1].items.map((e) => e.id), ['a', 'c']);
-});
-
-test('comboFromEvent uses the physical key', () => {
-  assert.equal(comboFromEvent({ code: 'KeyD', key: 'D', ctrlKey: true, shiftKey: true }), 'Ctrl+Shift+D');
-  assert.equal(comboFromEvent({ code: 'KeyD', key: '∂', metaKey: true, altKey: true }), 'Alt+Meta+D'); // Option on a Mac
-  assert.equal(comboFromEvent({ code: 'ShiftLeft', key: 'Shift', shiftKey: true }), '');
-  assert.equal(comboFromEvent({ code: 'F2', key: 'F2' }), 'F2');
-  assert.equal(comboFromEvent({ code: 'Space', key: ' ', ctrlKey: true }), 'Ctrl+Space');
-});
-
-test('formatCombo shows Mac symbols', () => {
-  assert.equal(formatCombo('Meta+Shift+D', true), '⌘⇧D');
-  assert.equal(formatCombo('Ctrl+Shift+D', false), 'Ctrl+Shift+D');
-});
-
-test('shortcutProblem rejects bare keys and browser shortcuts', () => {
-  assert.equal(shortcutProblem('Ctrl+Shift+G'), '');
-  assert.equal(shortcutProblem('Meta+Shift+G'), '');
-  assert.equal(shortcutProblem('F2'), '');
-  assert.ok(shortcutProblem('D'));
-  assert.ok(shortcutProblem('Shift+D'));
-  assert.ok(shortcutProblem('Ctrl+T'));
-  assert.ok(shortcutProblem('Meta+Q'));
-  assert.ok(shortcutProblem(''));
 });
 
 test('combinedDayState summarises all habits on a day', () => {

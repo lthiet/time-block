@@ -2,7 +2,7 @@
 // Programs, sessions and weigh-ins sync through their own files in the app's Google Drive folder,
 // with the same per-record store as habits.
 import { IRON_LOG_FIREBASE } from '../config.js';
-import { createStore } from './journal.js?v=26'; // must match app.js's import, so both share one module
+import { createStore } from './journal.js?v=27'; // must match app.js's import, so both share one module
 import * as F from './fitness-logic.js?v=3';
 
 const $ = (sel) => document.querySelector(sel);

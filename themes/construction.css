@@ -171,10 +171,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .habit.avoid .h-check.on { border-color: var(--ink); color: var(--ink); }
 .h-kind:hover { border-color: var(--ink); }
 
-/* Capture popup: yellow header strip. */
+/* Popups: yellow header strip, with the dialog's name in it. */
 .capture-box { box-shadow: 8px 8px 0 var(--yellow); padding-top: 22px; }
 .capture-box::before {
-  content: "> LOG A DISTRACTION";
+  content: "> " attr(aria-label);
+  text-transform: uppercase;
   position: absolute;
   top: 0;
   left: 0;
@@ -192,6 +193,3 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .layout { padding: 12px 22px 22px 16px; }
   .tl-dayhead .dom { font-size: 17px; }
 }
-
-/* Fitness dialogs reuse the popup, with their own name in the strip. */
-.fit-modal-box::before { content: "> " attr(aria-label); text-transform: uppercase; }
