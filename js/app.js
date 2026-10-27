@@ -2,8 +2,8 @@ import { CLIENT_ID, TARGET_CALENDAR_NAME, TASKS_CALENDAR_NAME, DEFAULT_DURATION,
 import * as auth from './auth.js';
 import * as gcal from './gcal.js?v=2'; // bump when gcal.js changes
 import * as drive from './drive.js';
-import * as L from './logic.js?v=25'; // bump with app.js?v= in index.html
-import * as J from './journal.js?v=26'; // keep in sync with fitness.js's import
+import * as L from './logic.js?v=26'; // bump with app.js?v= in index.html
+import * as J from './journal.js?v=27'; // keep in sync with fitness.js's import
 import * as Fit from './fitness.js?v=4';
 import { initSkinPicker } from './skin.js?v=3';
 
@@ -2148,7 +2148,7 @@ function wire() {
   $('#saveBtn').addEventListener('click', onSave);
 
   document.addEventListener('keydown', (e) => {
-    if (e.target.closest?.('#capture, #evCard')) return; // the distraction popup and event card have their own keys
+    if (e.target.closest?.('#evCard')) return; // the event card has its own keys
     if (Fit.isFitness()) return; // these keys belong to the planner
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();

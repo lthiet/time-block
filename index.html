@@ -20,7 +20,7 @@
     } catch {}
   </script>
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=33"></script>
+  <script type="module" src="js/app.js?v=34"></script>
 </head>
 <body>
   <header class="topbar">
@@ -79,16 +79,10 @@
         <div class="tasks-head">
           <input type="text" id="newDistraction" placeholder="+ Log a distraction (Enter)" aria-label="New distraction" autocomplete="off">
           <div class="muted small dist-hint">
-            <span id="distStats"></span> · press <kbd class="capture-key"></kbd> (or <kbd>G</kbd>) anywhere to log one
+            <span id="distStats"></span>
           </div>
         </div>
         <div id="distList" class="dist-list"></div>
-        <div class="shortcut-setting small">
-          <span>Capture shortcut</span> <kbd class="capture-key"></kbd>
-          <button type="button" class="chip-btn" id="shortcutBtn">Change</button>
-          <button type="button" class="linkish" id="shortcutReset" hidden>Reset</button>
-          <div id="shortcutNote" class="shortcut-note" role="status"></div>
-        </div>
       </section>
     </div>
 
@@ -197,13 +191,6 @@
 
   <div id="fitModal" class="capture fit-modal" hidden>
     <div class="capture-box fit-modal-box" role="dialog" aria-modal="true"></div>
-  </div>
-
-  <div id="capture" class="capture" hidden>
-    <div class="capture-box" role="dialog" aria-label="Log a distraction">
-      <input type="text" id="captureInput" placeholder="What did you want to look up?" aria-label="Distraction" autocomplete="off">
-      <div class="capture-foot muted small"><span id="captureNote"></span><span><kbd>Enter</kbd> log · <kbd>Esc</kbd> cancel</span></div>
-    </div>
   </div>
 
   <div id="evCard" class="ev-card" role="dialog" hidden></div>

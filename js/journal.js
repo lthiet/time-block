@@ -3,17 +3,14 @@
 import * as auth from './auth.js';
 import * as gcal from './gcal.js?v=2'; // bump when gcal.js changes
 import * as drive from './drive.js';
-import * as L from './logic.js?v=25'; // bump with app.js?v= in index.html
+import * as L from './logic.js?v=26'; // bump with app.js?v= in index.html
 
 const $ = (sel) => document.querySelector(sel);
 const HABITS_KEY = 'tb.habits';
 const DISTRACTIONS_KEY = 'tb.distractions';
-const SHORTCUT_KEY = 'tb.captureKey';
 const HABIT_KIND_KEY = 'tb.habitKind';
 const SYNC_DEBOUNCE = 1500;
 const HEATMAP_WEEKS = 26;
-
-export const IS_MAC = /mac|iphone|ipad/i.test(navigator.userAgentData?.platform || navigator.platform || '');
 
 let deps; // {h, flash, plural, fmtDay, fmtTime, todayStr, uid, isSignedIn, onSyncStatus, onAuthError}
 
@@ -471,111 +468,6 @@ function wireDistractions() {
   });
 }
 
-// ---------------------------------------------------------------- capture shortcut & popup
-
-let captureCombo = L.defaultCaptureCombo(IS_MAC);
-let recording = false;
-let returnFocus = null;
-
-function loadShortcut() {
-  try {
-    const saved = localStorage.getItem(SHORTCUT_KEY);
-    if (saved && !L.shortcutProblem(saved)) captureCombo = saved;
-  } catch { /* ignore */ }
-}
-
-function renderShortcut() {
-  const label = L.formatCombo(captureCombo, IS_MAC);
-  for (const el of document.querySelectorAll('.capture-key')) el.textContent = label;
-  const btn = $('#shortcutBtn');
-  btn.textContent = recording ? 'Press the new shortcut… (Esc cancels)' : 'Change';
-  btn.classList.toggle('recording', recording);
-  $('#shortcutReset').hidden = recording || captureCombo === L.defaultCaptureCombo(IS_MAC);
-}
-
-function setShortcut(combo) {
-  captureCombo = combo;
-  try {
-    if (combo === L.defaultCaptureCombo(IS_MAC)) localStorage.removeItem(SHORTCUT_KEY);
-    else localStorage.setItem(SHORTCUT_KEY, combo);
-  } catch { /* ignore */ }
-  renderShortcut();
-}
-
-const isEditable = (el) => el && (el.isContentEditable || /^(input|textarea|select)$/i.test(el.tagName));
-
-export function openCapture() {
-  const box = $('#capture');
-  if (!box.hidden) { $('#captureInput').focus(); return; }
-  returnFocus = document.activeElement;
-  box.hidden = false;
-  $('#captureInput').value = '';
-  $('#captureNote').textContent = '';
-  $('#captureInput').focus();
-}
-
-function closeCapture() {
-  $('#capture').hidden = true;
-  if (returnFocus?.isConnected) returnFocus.focus();
-  returnFocus = null;
-}
-
-function wireCapture() {
-  // Capture phase: the shortcut works whatever has focus, before any other key handler sees it.
-  window.addEventListener('keydown', (e) => {
-    if (e.repeat && !recording) return;
-    if (recording) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.key === 'Escape') { recording = false; renderShortcut(); return; }
-      const combo = L.comboFromEvent(e);
-      if (!combo) return; // still holding modifiers
-      const problem = L.shortcutProblem(combo);
-      if (problem) {
-        $('#shortcutNote').textContent = `${L.formatCombo(combo, IS_MAC)}: ${problem}`;
-        return;
-      }
-      recording = false;
-      $('#shortcutNote').textContent = '';
-      setShortcut(combo);
-      return;
-    }
-    const combo = L.comboFromEvent(e);
-    const plainKey = combo === 'G' && !isEditable(e.target); // quick trigger when not typing
-    if (combo === captureCombo || plainKey) {
-      e.preventDefault(); // the browser's own meaning of the combo (e.g. Find previous)
-      e.stopPropagation();
-      openCapture();
-    }
-  }, true);
-
-  $('#captureInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      closeCapture();
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const text = e.target.value.trim();
-      if (!text) { closeCapture(); return; }
-      logDistraction(text);
-      e.target.value = '';
-      $('#captureNote').textContent = 'Logged. Back to work.';
-      setTimeout(() => { if ($('#captureNote').textContent.startsWith('Logged')) closeCapture(); }, 450);
-    }
-  });
-  $('#capture').addEventListener('mousedown', (e) => { if (e.target.id === 'capture') closeCapture(); });
-
-  $('#shortcutBtn').addEventListener('click', () => {
-    recording = !recording;
-    $('#shortcutNote').textContent = '';
-    renderShortcut();
-  });
-  $('#shortcutReset').addEventListener('click', () => {
-    $('#shortcutNote').textContent = '';
-    setShortcut(L.defaultCaptureCombo(IS_MAC));
-  });
-}
-
 // ---------------------------------------------------------------- init
 
 export function render() {
@@ -587,10 +479,7 @@ export function init(d) {
   deps = d;
   habits.load();
   distractions.load();
-  loadShortcut();
   wireHabits();
   wireDistractions();
-  wireCapture();
-  renderShortcut();
   render();
 }

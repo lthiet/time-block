@@ -124,7 +124,7 @@ body { font-size: 15px; }
 
 /* A strip of translucent tape holds each square down across its top edge, its short ends torn off.
    The square's pseudo-elements are taken by the paper, so the tape hangs off its first child. */
-.panel > :first-child::after, .capture-foot::after {
+.panel > :first-child::after {
   content: "";
   position: absolute;
   top: -11px;
@@ -159,7 +159,7 @@ body { font-size: 15px; }
 .lane-head, .dist-day-head { background: transparent; font: 400 14px var(--font); letter-spacing: .02em; }
 .task-card, .habit, .dist { background: #ffffff; }
 .task-card, .habit, .dist, .task-card .t-title, .h-title-input { font-size: 14px; }
-.settings, .actionbar, .legend, .habit-map, .shortcut-setting { border-color: rgb(43 43 43 / .35); }
+.settings, .actionbar, .legend, .habit-map { border-color: rgb(43 43 43 / .35); }
 .tl-head { background: #fffef8; }
 
 /* Capture popup: one more torn square. */
