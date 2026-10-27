@@ -46,11 +46,12 @@
   --bw: 0px;
   --bw-sm: 1.5px;
   --panel-shadow: none;
-  --ctl-shadow: 2px 2px 0 var(--pen);
-  --ctl-shadow-hover: 3px 3px 0 var(--pen);
+  --ctl-shadow: 1px 2px 0 rgb(60 50 30 / .2);      /* buttons are scraps of paper: they cast the panels' shadow */
+  --ctl-shadow-hover: 2px 4px 3px rgb(60 50 30 / .22);
   --ctl-lift: translate(-1px, -1px);
-  --ctl-press: translate(2px, 2px);
-  --card-hover: 2px 2px 0 var(--pen);
+  --ctl-press: translate(1px, 1px);
+  --card-hover: 1px 2px 0 rgb(60 50 30 / .2);
+  --pencil: rgb(43 43 43 / .45);     /* outlines drawn lightly, not printed */
   --focus-ring: 0 0 0 3px rgb(255 240 74 / .9);
   --gap: 22px;
 
@@ -142,12 +143,101 @@ body { font-size: 15px; }
 .tl-dayhead.today .dom { background: var(--highlighter); color: var(--pen); }
 .h-stat.streak, .lane-head .count, .dist-day-head .count, .dist-done-toggle .count { background: var(--highlighter); color: var(--pen); }
 
-.btn, .chip-btn, .view-toggle { background: #ffffff; }
-.btn.primary { background: var(--red-pen); color: #fff; }
-.lane, .dist-day { background: transparent; }
-.lane-head, .dist-day-head { background: transparent; font: 400 14px var(--font); letter-spacing: .02em; }
-.task-card, .habit, .dist { background: #ffffff; }
+.lane, .dist-day { background: transparent; border-color: var(--pencil); }
+.lane-head, .dist-day-head { background: transparent; font: 400 14px var(--font); letter-spacing: .02em; border-bottom-color: rgb(43 43 43 / .25); }
+.task-card, .habit, .dist, .fit-card { background: #fffef8; border-color: var(--pencil); }
+.dist:hover { border-color: var(--pen); }
 .task-card, .habit, .dist, .task-card .t-title, .h-title-input { font-size: 14px; }
+
+/* ---------- Controls: scraps of paper, words written on the line ---------- */
+* { scrollbar-color: rgb(43 43 43 / .3) transparent; }
+kbd { padding: 0; border: 0; background: none; color: var(--muted); font: 400 12px var(--font-mono); }
+kbd::before { content: "("; }
+kbd::after { content: ")"; }
+.btn.primary kbd { border: 0; }
+.skin-picker, .field > span, .field legend, .grid-head, .fit-set-head span, .fit-group, .fit-raw-head span { text-transform: none; letter-spacing: .02em; }
+.skin-picker { font: 400 14px var(--font); }
+.panel-title .badge { padding: 0 2px; background: transparent; color: var(--red-pen); font: 700 22px/1 var(--font-display); }
+.settings summary strong { background: var(--highlighter); color: var(--pen); }
+
+/* Buttons: a scrap of paper laid on the page at a slight angle, lifted when hovered. */
+.btn, .chip-btn { background: #fffef8; border-color: var(--pencil); color: var(--pen); }
+.btn:nth-child(odd), .chip-btn:nth-child(odd) { rotate: -.6deg; }
+.btn:nth-child(even), .chip-btn:nth-child(even) { rotate: .5deg; }
+.btn:hover:not(:disabled), .chip-btn:hover { border-color: var(--pen); }
+.chip-btn.active { color: var(--pen); border-color: var(--pen); background: linear-gradient(100deg, transparent 4%, var(--highlighter) 7% 93%, transparent 96%) 0 65% / 100% 55% no-repeat, #fffef8; }
+/* Save, Log: the word to act on, highlighted and underlined in red pen. */
+.btn.primary {
+  background: linear-gradient(100deg, transparent 4%, var(--highlighter) 7% 93%, transparent 96%) 0 65% / 100% 55% no-repeat, #fffef8;
+  color: var(--pen);
+  border-color: var(--pen);
+  text-decoration: underline 1.5px var(--red-pen);
+  text-underline-offset: 3px;
+}
+.btn.danger, .btn.danger:hover:not(:disabled) { background: #fffef8; color: var(--red-pen); border-color: var(--red-pen); }
+.btn.fit-save.saved { background: #fffef8; color: var(--ok); border-color: var(--ok); }
+/* + Add block, Clear all: just written on the page, underlined when pointed at. */
+.btn.ghost, .btn.ghost:hover:not(:disabled), .btn.ghost:active:not(:disabled) { background: transparent; border-color: transparent; box-shadow: none; transform: none; rotate: none; }
+.btn.ghost { padding-inline: 4px; }
+.btn.ghost:hover:not(:disabled) { text-decoration: underline 1.5px var(--pen); text-underline-offset: 3px; }
+.fit-add-day.btn.ghost { border-color: var(--pencil); }
+.icon-btn { color: var(--pen); }
+.icon-btn:hover { color: var(--pen); background: linear-gradient(100deg, transparent 12%, var(--highlighter) 16% 84%, transparent 88%) center / 100% 60% no-repeat; }
+
+/* Segmented toggles are words in a row split by pencil slashes; the chosen one is highlighted. */
+.view-toggle { gap: 6px; overflow: visible; border: 0; background: transparent; box-shadow: none; }
+.view-toggle button { position: relative; padding: 2px 5px; color: var(--muted); }
+.view-toggle button + button { border-left: 0; }
+.view-toggle button + button::before { content: "/"; position: absolute; left: -6px; color: rgb(43 43 43 / .35); pointer-events: none; }
+.view-toggle button:hover { color: var(--pen); background: linear-gradient(var(--pen), var(--pen)) 50% 88% / calc(100% - 10px) 1px no-repeat; }
+.view-toggle button.active { color: var(--pen); background: linear-gradient(100deg, transparent 2%, var(--highlighter) 6% 94%, transparent 98%) 0 65% / 100% 55% no-repeat; }
+
+/* Fields are written on a pen line instead of in a box. */
+input[type=text], input[type=date], input[type=time], select, textarea {
+  border: 0;
+  border-bottom: 1.5px solid var(--pencil);
+  border-radius: 0;
+  background-color: transparent;
+  padding-inline: 2px;
+}
+input[type=text]:hover, input[type=date]:hover, select:hover, textarea:hover { border-color: var(--pen); }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--blue-pen);
+  box-shadow: 0 1px 0 var(--blue-pen);
+  background-color: rgb(255 240 74 / .22);
+}
+::-webkit-calendar-picker-indicator { opacity: .45; }
+select {
+  appearance: none;
+  padding-right: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M1 2.2 5.2 6.4 9 1.4' fill='none' stroke='%232b2b2b' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 3px center / 9px no-repeat;
+}
+textarea { background: repeating-linear-gradient(transparent 0 calc(1lh - 1px), rgb(47 95 179 / .16) calc(1lh - 1px) 1lh) 0 2px; }
+.capture-box input { font: 22px var(--font); }
+/* Checkboxes are pen-drawn squares, ticked in blue pen. */
+input[type=checkbox] {
+  appearance: none;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0 3px;
+  border: 1.5px solid var(--pen);
+  background: transparent;
+  rotate: -3deg;
+  cursor: pointer;
+  vertical-align: -2px;
+}
+input[type=checkbox]:checked { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2 7.5 5.5 11 12.5 1.5' fill='none' stroke='%232f5fb3' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat border-box; }
+input[type=checkbox]:focus-visible { box-shadow: var(--focus-ring); }
+/* Habit ticks and repeat days: drawn boxes, ticked in pen or highlighted. */
+.h-check { background: transparent; border-color: var(--pen); font: 700 20px/1 var(--font-display); }
+.h-check.on, .habit.avoid .h-check.on { background: transparent; color: var(--blue-pen); border-color: var(--pen); }
+.habit.avoid .h-check.on { color: var(--red-pen); }
+.h-kind { border-color: var(--pencil); font: 400 12px var(--font); text-transform: none; letter-spacing: 0; }
+.h-kind:hover { border-color: var(--pen); background: var(--highlighter); color: var(--pen); }
+.day-toggle { background: transparent; border-color: var(--pencil); font: 400 13px var(--font); }
+.day-toggle:hover { background: rgb(255 240 74 / .45); color: var(--pen); }
+.day-toggle.on { background: var(--highlighter); color: var(--pen); border-color: var(--pen); }
 .settings, .actionbar, .legend, .habit-map { border-color: rgb(43 43 43 / .35); }
 .tl-head { background: #fffef8; }
 
@@ -270,7 +360,6 @@ body { font-size: 15px; }
 .panel.fit-lifting { --paper: #fffef8; rotate: -.35deg; --tape-x: 47%; --tape-rot: -2.8deg; }
 .panel.fit-progress { --paper: #fbf6e9; rotate: .3deg; --tape-x: 53%; --tape-rot: 3.1deg; }
 .panel.fit-weight { --paper: #fffef8; rotate: -.2deg; --tape-x: 50%; --tape-rot: -1.4deg; }
-.fit-card { background: #ffffff; }
 .fit-card-head h3 { font: 700 22px/1 var(--font-display); }
 .fit-last { font-size: 14px; }
 /* Each chart is a scrap of graph paper. */
@@ -346,7 +435,7 @@ body { font-size: 15px; }
     conic-gradient(from -135deg at right, #000 90deg, transparent 0) right top / 4px 5px repeat-y,
     linear-gradient(#000, #000) center / calc(100% - 7px) 100% no-repeat;
 }
-.ev-close { top: 2px; right: 2px; background: #ffffff; z-index: 1; }
+.ev-close { top: 2px; right: 2px; z-index: 1; }
 .ev-body { padding: 12px 8px 6px; gap: 6px; }
 /* Ruled like the planner page, so the lines sit under the handwriting. */
 .ev-body:not(.ev-form) { background: repeating-linear-gradient(transparent 0 23px, rgb(47 95 179 / .16) 23px 24px) 0 10px; }
@@ -369,7 +458,6 @@ body { font-size: 15px; }
 /* The delete question is circled in red pen. */
 .ev-confirm { background: transparent; border: 1.5px solid var(--red-pen); border-radius: 0; rotate: -.6deg; }
 .ev-confirm .small { font-size: 15px; color: var(--red-pen); }
-.btn.danger { background: var(--red-pen); border-color: var(--pen); }
 .ev-form .ev-field { font-size: 14px; color: var(--blue-pen); }
-.ev-form input, .ev-form textarea { font-size: 15px; background: #ffffff; }
+.ev-form input, .ev-form textarea { font-size: 15px; }
 .ev-card.sheet { rotate: 0deg; }
