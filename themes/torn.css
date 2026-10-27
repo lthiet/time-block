@@ -187,7 +187,7 @@ body { font-size: 15px; }
   --note-base: none;
   --curl: 0px;                       /* how far up the bottom edge has lifted */
   /* The paper darkens toward the bottom as it bends up off the page. */
-  --curl-shade: linear-gradient(transparent calc(100% - var(--curl) * 4 - 4px), rgb(70 55 20 / .16) calc(100% - var(--curl)));
+  --curl-shade: linear-gradient(transparent calc(100% - min(var(--curl) * 3, 35%)), rgb(70 55 20 / .07) calc(100% - var(--curl)));
   --shadow-off: 1px 2px;
   isolation: isolate;
   font-family: var(--font);
@@ -219,7 +219,7 @@ body { font-size: 15px; }
   z-index: -2;
   clip-path: var(--note-base);
   translate: var(--shadow-off);
-  background: linear-gradient(rgb(60 50 30 / .28) calc(100% - var(--curl) - 2px), rgb(60 50 30 / .14));
+  background: linear-gradient(rgb(60 50 30 / .2) calc(100% - var(--curl) - 2px), rgb(60 50 30 / .08));
 }
 .blk { padding-top: 4px; }
 .blk b { font-weight: 400; font-size: 13px; }
