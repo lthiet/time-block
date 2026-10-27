@@ -61,7 +61,22 @@ export function todaysProgram(programs, today) {
 /** Sessions of one exercise, oldest first. */
 export const exerciseSessions = (sessions, ex) => sessions.filter((s) => s.ex === ex).sort(byDate);
 
-export const maxWeight = (sets) => Math.max(0, ...sets.map((s) => num(s.weight)));
+/**
+ * Every exercise, grouped by the split day it first appears in (days in order), then the ones with
+ * sessions but no longer in any split under "Other". [{title, exercises: [{id, name}]}]; empty groups dropped.
+ */
+export function progressGroups(programs, sessions) {
+  const seen = new Set();
+  const groups = sortPrograms(programs).map((p) => ({
+    title: p.name,
+    exercises: p.exercises.filter((e) => !seen.has(e.id) && seen.add(e.id)),
+  }));
+  const other = [...new Set(sessions.map((s) => s.ex))].filter((id) => !seen.has(id)).sort().map((id) => ({ id, name: id }));
+  groups.push({ title: 'Other', exercises: other });
+  return groups.filter((g) => g.exercises.length);
+}
+
+export const maxWeight =(sets) => Math.max(0, ...sets.map((s) => num(s.weight)));
 
 export const setsToText = (sets) => (sets || []).map((s) => `${s.weight}×${s.reps}`).join(' / ');
 
