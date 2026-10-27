@@ -1,5 +1,5 @@
 // Post-it calendar blocks (Torn paper skin): every block gets its own procedurally generated outline.
-// Its edges waver a little, and its bottom corners curl up off the page by different amounts. The outline is a clip-path
+// Its edges waver a little, and its bottom edge curls up off the page, unevenly. The outline is a clip-path
 // polygon in percentages plus pixels, so it fits whatever size the note is.
 
 // Small seeded PRNG (mulberry32), so a note keeps the same outline each time it's re-rendered.
@@ -28,66 +28,40 @@ const at = (pct, px) => `calc(${r2(pct)}% ${px < 0 ? '-' : '+'} ${r2(Math.abs(px
  * Outline for one note.
  * @param seed     number; same seed, same outline
  * @param wobble   how far (px) an edge may waver inward
- * @param curl     [min, max] px a bottom corner may curl up
- * @param across   stretches along the top and bottom edges
+ * @param lift     [min, max] px the bottom edge curls up off the page, seen from above
+ * @param across   stretches along the top edge
  * @param down     stretches down each side
- * @returns { edge, base, curlR, curlL } — `edge` is the note's clip-path, `base` the same outline
- *   with flat corners (for the shadow left on the page), `curlR`/`curlL` the [across, up] px each
- *   bottom corner is lifted by (0 when it lies flat), to place the curl's shading.
+ * @returns { edge, base, lift } — `edge` is the note's clip-path, `base` the same outline lying
+ *   flat (for the shadow left on the page), `lift` how far up (px) the bottom edge reaches at most.
  */
-export function noteOutline(seed, { wobble = 1, curl = [8, 20], across = 7, down = 7 } = {}) {
+export function noteOutline(seed, { wobble = 1, lift = [3, 8], across = 7, down = 7 } = {}) {
   const rand = rng(seed);
   const between = (lo, hi) => lo + rand() * (hi - lo);
   const dent = () => -rand() * wobble; // edges only ever waver inward, so nothing spills out
 
-  // One bottom corner curls a lot, the other a little (sometimes not at all).
-  const big = between(curl[0], curl[1]);
-  const small = rand() < 0.35 ? 0 : between(curl[0] * 0.2, curl[0] * 0.7);
-  const rightBig = rand() < 0.6;
-  const cR = rightBig ? big : small;
-  const cL = rightBig ? small : big;
-  const ratioR = between(0.6, 1.3); // how far up the side the curl reaches, relative to along the bottom
-  const ratioL = between(0.6, 1.3);
+  // The whole bottom edge curls up, rarely evenly: each end lifts its own amount, and the middle
+  // sags a little or bows up a little between them.
+  const liftL = between(lift[0], lift[1]);
+  const liftR = between(lift[0], lift[1]);
+  const bow = between(-0.25, 0.25) * Math.min(liftL, liftR);
+  const liftAt = (x) => liftL + (liftR - liftL) * x + bow * 4 * x * (1 - x); // x: 0 left .. 1 right
 
-  // Points between the corners; the corners themselves are added below. The curls stay within the
-  // last stretch of each edge, so they never cut across one of these.
+  // Points between the corners; the corners themselves are added below. The lift stays within the
+  // last stretch of each side, so it never cuts across one of these.
   const along = (n) => Array.from({ length: n - 1 }, (_, i) => ((i + 1) / n) * 100 + between(-3, 3));
   const top = along(across).map((p) => `${at(p, 0)} ${at(0, -dent())}`);
   const right = along(down).map((p) => `${at(100, dent())} ${at(p, 0)}`);
-  const bottom = along(across).map((p) => `${at(100 - p, 0)} ${at(100, dent())}`);
   const left = along(down).map((p) => `${at(0, -dent())} ${at(100 - p, 0)}`);
+  const xs = [1, 0.8, 0.6, 0.4, 0.2, 0]; // the lifted bottom, right to left, enough points to curve
+  const lifted = xs.map((x) => `${at(x * 100, 0)} ${at(100, -liftAt(x) + (x % 1 ? dent() : 0))}`);
+  const flatBottom = along(across).map((p) => `${at(100 - p, 0)} ${at(100, dent())}`);
   const TL = `${at(0, 0)} ${at(0, 0)}`, TR = `${at(100, 0)} ${at(0, 0)}`;
   const BR = `${at(100, 0)} ${at(100, 0)}`, BL = `${at(0, 0)} ${at(100, 0)}`;
 
-  // A curled corner seen from above: the corner is pulled back along a rounded line.
-  function corner(c, ratio, isRight) {
-    const pts = [];
-    const n = 5;
-    for (let i = 0; i <= n; i++) {
-      const t = i / n;
-      // Quadratic bezier from the bottom edge to the side, bowed slightly toward the corner
-      // (a control point at .5 would be a straight fold).
-      const bx = c, by = 0, cx = c * 0.38, cy = c * ratio * 0.38, ex = 0, ey = c * ratio;
-      const x = (1 - t) ** 2 * bx + 2 * (1 - t) * t * cx + t ** 2 * ex;
-      const y = (1 - t) ** 2 * by + 2 * (1 - t) * t * cy + t ** 2 * ey;
-      pts.push(isRight ? `${at(100, -x)} ${at(100, -y)}` : `${at(0, x)} ${at(100, -y)}`);
-    }
-    return isRight ? pts.reverse() : pts; // clockwise: down the right side, then right to left along the bottom
-  }
-
-  const flat = [TL, ...top, TR, ...right, BR, ...bottom, BL, ...left];
-  const curled = [
-    TL, ...top, TR, ...right,
-    ...(cR ? corner(cR, ratioR, true) : [BR]),
-    ...bottom,
-    ...(cL ? corner(cL, ratioL, false) : [BL]),
-    ...left,
-  ];
   return {
-    edge: `polygon(${curled.join(', ')})`,
-    base: `polygon(${flat.join(', ')})`,
-    curlR: [r2(cR), r2(cR * ratioR)],
-    curlL: [r2(cL), r2(cL * ratioL)],
+    edge: `polygon(${[TL, ...top, TR, ...right, ...lifted, ...left].join(', ')})`,
+    base: `polygon(${[TL, ...top, TR, ...right, BR, ...flatBottom, BL, ...left].join(', ')})`,
+    lift: r2(Math.max(liftL, liftR, liftAt(0.5))),
   };
 }
 
@@ -99,17 +73,15 @@ function seedFor(el, i) {
 
 function sizeFor(el) {
   const h = parseFloat(el.style.height) || 20; // all-day chips have no set height
-  const max = Math.min(8, h * 0.2);
-  return { wobble: 0.5, curl: [Math.min(3, max), max], across: 2, down: 3 };
+  const max = Math.min(5, h * 0.12);
+  return { wobble: 0.5, lift: [max * 0.35, max], across: 2, down: 3 };
 }
 
 function dress(el, i) {
   const o = noteOutline(seedFor(el, i), sizeFor(el));
   el.style.setProperty('--note-edge', o.edge);
   el.style.setProperty('--note-base', o.base);
-  // The shading box is twice the fold, so the fold runs across it a quarter of the way in.
-  el.style.setProperty('--curl-r', `${o.curlR[0] * 2}px ${o.curlR[1] * 2}px`);
-  el.style.setProperty('--curl-l', `${o.curlL[0] * 2}px ${o.curlL[1] * 2}px`);
+  el.style.setProperty('--curl', `${o.lift}px`);
 }
 
 let observer = null;

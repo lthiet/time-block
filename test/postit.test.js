@@ -9,7 +9,7 @@ test('a note keeps its outline for the same seed and differs for another', () =>
 
 test('outlines only ever cut inward, so a note never spills past its box', () => {
   for (let seed = 0; seed < 200; seed++) {
-    const { edge, base } = noteOutline(seed, { wobble: 1.2, curl: [10, 26] });
+    const { edge, base } = noteOutline(seed, { wobble: 1.2, lift: [2, 8] });
     assert.doesNotMatch(edge + base, /calc\(100% \+ (?!0px)/);
     assert.doesNotMatch(edge + base, /calc\(0% - /);
   }
