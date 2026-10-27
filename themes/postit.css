@@ -1,0 +1,205 @@
+/* Post-it: sticky notes pressed onto a cork board. Each note's outline is generated (js/postit.js):
+   edges that waver a little, bottom corners curled up off the board, so no two notes sit alike.
+   Marker headings, handwriting, a pencil-ruled planner note for the calendar. */
+@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Permanent+Marker&family=Courier+Prime&display=swap");
+
+:root {
+  --pen: #2b2b2b;
+  --marker: #1f1f1f;
+  --blue-pen: #2f5fb3;
+  --red-pen: #d9472b;
+  --canary: #fdf28a;
+  --pink: #ffb0cf;
+  --blue: #a9daf3;
+  --green: #cdee96;
+  --orange: #ffc978;
+  --note: var(--canary);             /* each note picks its own colour below */
+  --paper: var(--note);
+  /* Set per note by js/postit.js; these are the plain-square fallbacks. */
+  --note-edge: none;
+  --note-base: none;
+  --curl-at: 100% 100%;
+  --curl: 30px;
+
+  --bg: #c49a6c;
+  --page-bg:
+    radial-gradient(circle at 30% 40%, rgb(90 55 25 / .25) 0 1px, transparent 1.5px) 0 0 / 7px 9px,
+    radial-gradient(circle at 70% 60%, rgb(255 240 210 / .22) 0 1px, transparent 1.5px) 3px 2px / 11px 8px,
+    radial-gradient(circle at 50% 50%, rgb(90 55 25 / .18) 0 1.5px, transparent 2px) 5px 6px / 17px 13px,
+    #c49a6c;                         /* cork */
+  --bar: #b88d5f;
+  --bar-text: var(--pen);
+  --surface: transparent;
+  --surface-solid: #fffbe2;
+  --surface-2: rgb(43 43 43 / .05);
+  --field: rgb(255 255 255 / .7);
+  --ink: var(--pen);
+  --border: var(--pen);
+  --border-strong: var(--pen);
+  --line: rgb(43 43 43 / .14);
+  --text: var(--pen);
+  --muted: #5f5848;
+  --accent: var(--blue-pen);
+  --accent-ink: #ffffff;
+  --accent-2: var(--red-pen);
+  --accent-2-ink: #ffffff;
+  --accent-soft: rgb(255 255 255 / .5);
+  --info: var(--blue-pen);
+  --info-ink: #ffffff;
+  --label: var(--blue-pen);
+  --done: var(--pen);
+  --sheet: linear-gradient(rgb(43 43 43 / .09) 1px, transparent 1px) 0 calc(var(--hour) / 2) / 100% var(--hour), transparent;
+  --today-col: rgb(255 255 255 / .35);
+  --now: var(--red-pen);
+  --overlay: rgb(120 85 50 / .45);
+
+  --radius: 0;
+  --radius-sm: 2px;
+  --bw: 0px;
+  --bw-sm: 1.5px;
+  --panel-shadow: none;
+  --ctl-shadow: 2px 2px 0 var(--pen);
+  --ctl-shadow-hover: 3px 3px 0 var(--pen);
+  --ctl-lift: translate(-1px, -1px);
+  --ctl-press: translate(2px, 2px);
+  --card-hover: 2px 2px 0 var(--pen);
+  --focus-ring: 0 0 0 3px rgb(47 95 179 / .5);
+  --gap: 22px;
+
+  --font: "Patrick Hand", "Comic Sans MS", cursive;
+  --font-display: "Permanent Marker", "Caveat", cursive;
+  --font-mono: "Courier Prime", "Courier New", monospace;
+  --font-term: var(--font);
+  --term-size: 15px;
+  --title-font: 400 24px/1 var(--font-display);
+  --brand-font: 400 24px/1 var(--font-display);
+  --agenda-title-font: 400 24px/1 var(--font-display);
+  --btn-font: 400 15px var(--font);
+  --label-font: 400 13px var(--font);
+
+  /* Charts are drawn by hand straight onto the note: blue or red pen, a pencil trend line. */
+  --chart-font: 14px "Patrick Hand", "Comic Sans MS", cursive;
+  --chart-lift: var(--blue-pen);
+  --chart-weight: var(--red-pen);
+  --chart-trend: #55524b;
+  --chart-grid: rgb(43 43 43 / .25);
+  --chart-label: var(--pen);
+  --chart-fill: 0;
+  --chart-mark: rgb(255 255 255 / .6);
+  --chart-point: ring;
+  --chart-wobble: 1.1;
+}
+
+body { font-size: 15px; }
+.topbar { border-bottom: 0; box-shadow: 0 2px 0 rgb(90 55 25 / .35); }
+.layout { padding-top: 22px; }
+
+/* Each note is pressed on by hand at its own angle. Calendar and Time blocks tilt least,
+   so dragging onto the calendar stays within a few pixels. */
+.panel.habits { --note: var(--pink); rotate: -.6deg; }
+.panel.distractions { --note: var(--orange); rotate: .5deg; }
+.panel.tasks { --note: var(--canary); rotate: -.3deg; }
+.panel.entry { --note: var(--green); rotate: .15deg; }
+.panel.agenda { --note: #fff7b8; rotate: -.1deg; }
+
+/* The note is two layers behind the panel's content: the paper in its curled outline, and its
+   shadow on the board in the flat outline, so a curled corner shows the shadow it lifted off. */
+.panel, .capture-box { isolation: isolate; padding: 20px 16px 16px; }
+.panel::before, .panel::after, .capture-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.panel::before, .capture-box::after {
+  z-index: -1;
+  clip-path: var(--note-edge);
+  background:
+    /* the curled corner catches the light along its fold and darkens beneath it */
+    radial-gradient(circle at var(--curl-at), rgb(255 255 255 / .55) 0 calc(var(--curl) * .5), rgb(0 0 0 / .1) calc(var(--curl) * .55), transparent var(--curl)),
+    /* the gummed strip along the top is a touch glossier */
+    linear-gradient(rgb(255 255 255 / .28), rgb(255 255 255 / .12) 18px, transparent 26px),
+    /* and the free end below it bows away from the board */
+    linear-gradient(transparent 70%, rgb(80 60 0 / .07)),
+    var(--note);
+}
+.panel::after { z-index: -2; clip-path: var(--note-base); background: rgb(60 35 10 / .35); translate: 1px 3px; }
+.settings { margin-inline: -16px; }
+
+/* Marker headings, underlined with a quick stroke. */
+.panel-title, .brand span { width: fit-content; padding-inline: 2px; color: var(--marker); }
+.panel-title { background: linear-gradient(var(--marker), var(--marker)) 0 100% / 100% 2px no-repeat; padding-bottom: 2px; }
+.panel-title .badge { background: var(--marker); color: #fff; font-family: var(--font); }
+.agenda-head h2 { color: var(--marker); }
+.tl-dayhead.today .dom { background: var(--red-pen); color: #fff; }
+.h-stat.streak, .lane-head .count, .dist-day-head .count, .dist-done-toggle .count { background: var(--marker); color: #fff; }
+
+.btn, .chip-btn, .view-toggle { background: #ffffff; }
+.btn.primary { background: var(--red-pen); color: #fff; }
+.lane, .dist-day { background: transparent; }
+.lane-head, .dist-day-head { background: transparent; font: 400 14px var(--font); letter-spacing: .02em; }
+.task-card, .habit, .dist { background: rgb(255 255 255 / .55); }
+.task-card, .habit, .dist, .task-card .t-title, .h-title-input { font-size: 14px; }
+.settings, .actionbar, .legend, .habit-map, .shortcut-setting { border-color: rgb(43 43 43 / .3); }
+
+/* Capture popup: one more note, slapped on top. */
+.capture-box { --note: var(--canary); background: transparent; border: 0; box-shadow: none; rotate: -.6deg; filter: drop-shadow(1px 4px 3px rgb(60 35 10 / .4)); }
+.capture-box::before { content: "Note to self:"; display: block; font: 400 22px var(--font-display); color: var(--marker); margin-bottom: 6px; }
+
+/* ---------- Calendar: a big lined planner note ---------- */
+.tl-head { background: transparent; border-bottom: 1.5px solid rgb(43 43 43 / .45); }
+.tl-dayhead .dow { font: 400 13px var(--font); letter-spacing: .02em; text-transform: none; }
+.tl-dayhead .dom { font: 400 17px/1 var(--font-display); }
+.tl-dayhead.today { box-shadow: none; }
+.tl-body { border-left: 1.5px solid rgb(217 71 43 / .5); }
+.tl-col { border-left-color: rgb(43 43 43 / .18); }
+.timeline .hour { border-top-color: rgb(43 43 43 / .28); }
+.timeline .hour span { font: 400 14px var(--font); top: -9px; color: var(--red-pen); }
+
+/* Events are little sticky notes in their calendar's colour, each with its own generated outline
+   and a corner curling off the planner. */
+.blk, .allday-chip {
+  font-family: var(--font);
+  color: var(--pen);
+  border: 0;
+  border-radius: 0;
+  --note: color-mix(in srgb, var(--c) 50%, #fffbe0);
+  clip-path: var(--note-edge);
+  background:
+    radial-gradient(circle at var(--curl-at), rgb(255 255 255 / .6) 0 calc(var(--curl) * .5), rgb(0 0 0 / .12) calc(var(--curl) * .55), transparent var(--curl)),
+    linear-gradient(rgb(255 255 255 / .25), transparent 6px),
+    var(--note);
+}
+.blk { padding-top: 4px; }
+.blk b { font-weight: 400; font-size: 13px; }
+.blk .blk-time { font: 11px var(--font); opacity: .75; }
+@container (max-width: 64px) { .blk b { font-size: 11px; line-height: 1.1; } }
+.blk.draft {
+  --note: color-mix(in srgb, var(--c) 40%, #fffbe0);
+  background:
+    radial-gradient(circle at var(--curl-at), rgb(255 255 255 / .6) 0 calc(var(--curl) * .5), rgb(0 0 0 / .12) calc(var(--curl) * .55), transparent var(--curl)),
+    repeating-linear-gradient(-45deg, rgb(255 255 255 / .35) 0 5px, transparent 5px 10px),
+    var(--note);
+}
+.blk:hover { box-shadow: none; --note: color-mix(in srgb, var(--c) 64%, #fffbe0); }
+/* A note stuck over an earlier one gets a pale edge on its left (inset, since the outline clips anything outside it). */
+.blk.stacked { box-shadow: inset 2px 0 0 rgb(255 255 255 / .8); }
+
+/* Fitness dialogs reuse the popup without its "Note to self" heading. */
+.capture-box.fit-modal-box::before { content: none; }
+
+/* ---------- Fitness ---------- */
+.panel.fit-lifting { --note: var(--blue); rotate: -.35deg; }
+.panel.fit-progress { --note: var(--green); rotate: .3deg; }
+.panel.fit-weight { --note: var(--pink); rotate: -.2deg; }
+.fit-card { background: rgb(255 255 255 / .55); }
+.fit-card-head h3 { font: 400 18px/1 var(--font-display); }
+.fit-last { font-size: 14px; }
+/* Each chart is a small square of graph paper stuck onto the note. */
+.fit-chart {
+  background:
+    linear-gradient(rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(90deg, rgb(47 95 179 / .1) 1px, transparent 1px) 0 0 / 12px 12px,
+    #fffef8;
+  border: 1px solid rgb(43 43 43 / .2);
+}

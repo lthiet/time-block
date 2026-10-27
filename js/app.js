@@ -5,7 +5,7 @@ import * as drive from './drive.js';
 import * as L from './logic.js?v=25'; // bump with app.js?v= in index.html
 import * as J from './journal.js?v=26'; // keep in sync with fitness.js's import
 import * as Fit from './fitness.js?v=4';
-import { initSkinPicker } from './skin.js?v=3';
+import { initSkinPicker } from './skin.js?v=4';
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
