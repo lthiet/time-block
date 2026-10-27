@@ -103,7 +103,45 @@ function sizeCanvas(canvas, w, hgt) {
 
 const AXIS_W = 40;
 
+/**
+ * A path through `pts`. With `wobble` > 0 it's drawn freehand: each stretch is split into short steps
+ * nudged sideways by a smooth, seeded noise, so it looks drawn with a pen yet never shifts between redraws.
+ */
+function tracePath(ctx, pts, wobble, seed = 0) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  let k = seed;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const n = wobble ? Math.max(1, Math.ceil(len / 6)) : 1;
+    for (let j = 1; j <= n; j++) {
+      const t = j / n;
+      k++;
+      const off = j === n ? 0 : wobble * (0.6 * Math.sin(k * 1.7) + 0.4 * Math.sin(k * 0.53 + 1.3));
+      ctx.lineTo(a.x + (b.x - a.x) * t - ((b.y - a.y) / len) * off, a.y + (b.y - a.y) * t + ((b.x - a.x) / len) * off);
+    }
+  }
+}
+
+// How a chart is drawn comes from the skin: the --chart-* tokens in styles.css and themes/*.css.
+function chartStyle() {
+  return {
+    font: css('--chart-font') || '10px monospace',
+    grid: tokenColor('--chart-grid'),
+    label: tokenColor('--chart-label'),
+    trend: tokenColor('--chart-trend'),
+    mark: css('--chart-mark') === 'none' ? null : tokenColor('--chart-mark'),
+    fill: parseFloat(css('--chart-fill')) || 0,
+    point: css('--chart-point') || 'square',
+    wobble: parseFloat(css('--chart-wobble')) || 0,
+    paper: tokenColor('--surface-solid'),
+  };
+}
+
 function drawChart(plot, axis, { values, labels, color, height, trend }) {
+  const st = chartStyle();
   const pad = { top: 10, right: 10, bottom: 22, left: 8 };
   const W = plot.parentElement.getBoundingClientRect().width;
   const H = height;
@@ -116,20 +154,18 @@ function drawChart(plot, axis, { values, labels, color, height, trend }) {
   const range = maxV - minV || 1;
   const yFor = (v) => pad.top + cH - ((v - minV) / range) * cH;
   const pts = values.map((v, i) => ({ x: pad.left + (i / (values.length - 1 || 1)) * cW, y: yFor(v) }));
-  const line = tokenColor('--line');
-  const label = tokenColor('--label');
-  const ink = tokenColor('--text');
   const stroke = tokenColor(color);
-  const font = `10px ${css('--font-mono') || 'monospace'}`;
+  const freehand = st.wobble > 0;
 
-  ctx.strokeStyle = line;
+  ctx.strokeStyle = st.grid;
   ctx.lineWidth = 1;
   for (let i = 0; i < 4; i++) {
     const y = Math.round(pad.top + (i / 3) * cH) + 0.5;
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    tracePath(ctx, [{ x: 0, y }, { x: W, y }], st.wobble * 0.4, i * 31);
+    ctx.stroke();
   }
-  ctx.fillStyle = label;
-  ctx.font = font;
+  ctx.fillStyle = st.label;
+  ctx.font = st.font;
   ctx.textAlign = 'center';
   const step = Math.max(1, Math.ceil(values.length / Math.max(1, Math.floor(cW / 44))));
   let lastRight = -Infinity; // clamping to the canvas edge can push a label into its neighbour
@@ -140,42 +176,68 @@ function drawChart(plot, axis, { values, labels, color, height, trend }) {
     ctx.fillText(labels[i], x, H - 5);
     lastRight = x + half;
   }
-  // Area under the line, then the line and (when there's room) the points. Square points, no rounding.
-  ctx.globalAlpha = 0.12;
-  ctx.fillStyle = stroke;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, H - pad.bottom);
-  for (const p of pts) ctx.lineTo(p.x, p.y);
-  ctx.lineTo(pts[pts.length - 1].x, H - pad.bottom);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'miter';
-  ctx.beginPath();
-  pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
-  ctx.stroke();
-  if (cW / Math.max(1, values.length - 1) >= 10) for (const p of pts) ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+  // Under the line: a tinted area, or a broad highlighter stroke along it.
+  if (st.fill) {
+    ctx.globalAlpha = st.fill;
+    ctx.fillStyle = stroke;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, H - pad.bottom);
+    for (const p of pts) ctx.lineTo(p.x, p.y);
+    ctx.lineTo(pts[pts.length - 1].x, H - pad.bottom);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  if (st.mark) {
+    ctx.strokeStyle = st.mark;
+    ctx.lineWidth = 7;
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'round';
+    tracePath(ctx, pts.map((p) => ({ x: p.x, y: p.y + 3 })), st.wobble * 1.5, 7);
+    ctx.stroke();
+  }
   if (trend) {
     ctx.globalAlpha = 0.6;
-    ctx.strokeStyle = ink;
+    ctx.strokeStyle = st.trend;
     ctx.lineWidth = 1.5;
+    ctx.lineCap = freehand ? 'round' : 'butt';
     ctx.setLineDash([5, 3]);
-    ctx.beginPath();
-    trend.forEach((v, i) => (i ? ctx.lineTo(pts[i].x, yFor(v)) : ctx.moveTo(pts[i].x, yFor(v))));
+    tracePath(ctx, trend.map((v, i) => ({ x: pts[i].x, y: yFor(v) })), st.wobble * 0.7, 3);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   }
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = freehand ? 'round' : 'miter';
+  ctx.lineCap = freehand ? 'round' : 'butt';
+  tracePath(ctx, pts, st.wobble);
+  ctx.stroke();
+  // Points when there's room: solid squares, or little circles drawn round each reading.
+  if (cW / Math.max(1, values.length - 1) >= 10) {
+    pts.forEach((p, i) => {
+      if (st.point === 'ring') {
+        const r = 3.2 + (freehand ? 0.6 * Math.sin(i * 2.3) : 0);
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, r + 0.4, r, i * 0.7, 0, Math.PI * 2);
+        ctx.fillStyle = st.paper;
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = stroke;
+        ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+      }
+    });
+  }
   // Pinned Y axis, same scale as the plot.
   const ax = sizeCanvas(axis, AXIS_W, H);
-  ax.fillStyle = label;
-  ax.font = font;
+  ax.fillStyle = st.label;
+  ax.font = st.font;
   ax.textAlign = 'right';
   for (let i = 0; i < 4; i++) {
     const y = pad.top + (i / 3) * cH;
     const v = maxV - (i / 3) * range;
-    ax.fillText(v < 10 ? v.toFixed(1) : String(Math.round(v)), AXIS_W - 6, y + 3);
+    ax.fillText(v < 10 ? v.toFixed(1) : String(Math.round(v)), AXIS_W - 6, y + 4);
   }
 }
 
@@ -347,7 +409,7 @@ function renderProgress() {
     const best = Math.max(...hist.map((s) => F.maxWeight(s.sets)));
     return h('div', { class: 'fit-card' },
       h('div', { class: 'fit-card-head' }, h('h3', {}, ex.name), h('span', { class: 'fit-last' }, `best ${best} kg · ${deps.plural(hist.length, 'session')}`)),
-      chart({ values: hist.map((s) => F.maxWeight(s.sets)), labels: hist.map((s) => fmtShort(s.date)), color: '--info', height: 120 }),
+      chart({ values: hist.map((s) => F.maxWeight(s.sets)), labels: hist.map((s) => fmtShort(s.date)), color: '--chart-lift', height: 120 }),
     );
   }).filter(Boolean);
   $('#fitProgress').replaceChildren(...(cards.length ? cards : [h('p', { class: 'muted small empty' },
@@ -378,7 +440,7 @@ function renderWeight() {
     data.length
       ? h('div', { class: 'fit-card' },
         h('div', { class: 'fit-card-head' }, h('h3', {}, 'Trend'), h('span', { class: 'fit-last' }, trend ? 'kg · dashed = 7-day trend' : 'kg')),
-        chart({ values: data.map((d) => d.weight), labels: data.map((d) => fmtShort(d.date)), color: '--ok', height: 170, trend }))
+        chart({ values: data.map((d) => d.weight), labels: data.map((d) => fmtShort(d.date)), color: '--chart-weight', height: 170, trend }))
       : h('p', { class: 'muted small empty' }, sorted.length ? 'No weigh-ins in this range.' : 'Log your weight to start the chart.'),
     h('div', { class: 'fit-card' },
       h('div', { class: 'fit-card-head' }, h('h3', {}, 'Log weight'), h('span', { class: 'fit-last' }, 'today')),
@@ -713,6 +775,8 @@ export function init(d) {
   $('#fitModal').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeModal(); } });
   // Charts read the skin's colours, so redraw once a newly picked skin's stylesheet has loaded.
   $('#skin')?.addEventListener('load', () => render());
+  // …and once its web fonts arrive, since text already drawn on a canvas doesn't update by itself.
+  document.fonts?.addEventListener('loadingdone', () => render());
   window.addEventListener('hashchange', applyHash);
 
   setTab(ui.tab);

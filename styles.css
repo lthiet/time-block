@@ -71,6 +71,18 @@
   --btn-tracking: 0;
   --label-font: 600 10px var(--font-mono);
 
+  /* Charts (Fitness), read by the canvas code in js/fitness.js */
+  --chart-font: 10px var(--font-mono);   /* canvas font shorthand for the labels */
+  --chart-lift: var(--info);             /* progress lines */
+  --chart-weight: var(--ok);             /* body weight line */
+  --chart-trend: var(--text);            /* dashed 7-day trend */
+  --chart-grid: var(--line);
+  --chart-label: var(--label);
+  --chart-fill: .12;                     /* opacity of the area under the line; 0 for none */
+  --chart-mark: none;                    /* or a colour: a highlighter stroke under the line */
+  --chart-point: square;                 /* square | ring */
+  --chart-wobble: 0;                     /* px of hand-drawn wobble; 0 is ruler-straight */
+
   --hour: 36px;      /* set at runtime to stretch the calendar to the panel height */
   --hour-min: 36px;
   color-scheme: light;

@@ -4,8 +4,8 @@ import * as gcal from './gcal.js?v=2'; // bump when gcal.js changes
 import * as drive from './drive.js';
 import * as L from './logic.js?v=25'; // bump with app.js?v= in index.html
 import * as J from './journal.js?v=26'; // keep in sync with fitness.js's import
-import * as Fit from './fitness.js?v=1';
-import { initSkinPicker } from './skin.js?v=2';
+import * as Fit from './fitness.js?v=2';
+import { initSkinPicker } from './skin.js?v=3';
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
