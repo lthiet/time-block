@@ -177,6 +177,7 @@ body { font-size: 15px; }
 .tl-col { border-left-color: rgb(43 43 43 / .22); }
 .timeline .hour { border-top-color: rgb(47 95 179 / .35); }
 .timeline .hour span { font: 400 14px var(--font); top: -9px; color: var(--red-pen); }
+.timeline { padding-bottom: 12px; } /* room for the last, larger hour label, or it overflows into a scrollbar */
 
 /* Events are post-its stuck on the planner page. Each has its own outline, generated in js/postit.js:
    edges that waver a little and a bottom edge curling up off the page. The paper is drawn in the
