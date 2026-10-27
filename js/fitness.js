@@ -3,7 +3,7 @@
 // with the same per-record store as habits.
 import { IRON_LOG_FIREBASE } from '../config.js';
 import { createStore } from './journal.js?v=26'; // must match app.js's import, so both share one module
-import * as F from './fitness-logic.js?v=2';
+import * as F from './fitness-logic.js?v=3';
 
 const $ = (sel) => document.querySelector(sel);
 const SECTION_KEY = 'tb.section';
@@ -400,9 +400,9 @@ function renderRange() {
 function renderProgress() {
   const { h } = deps;
   const today = deps.todayStr();
-  // Every exercise with sessions in range, grouped by split day, not just the day being logged.
+  // Every exercise in the current splits with sessions in range, grouped by split day.
   const out = [];
-  for (const g of F.progressGroups(programs.items, sessions.items)) {
+  for (const g of F.progressGroups(programs.items)) {
     const cards = g.exercises.map((ex) => {
       const hist = F.inRange(F.exerciseSessions(sessions.items, ex.id), ui.range, today);
       if (!hist.length) return null;

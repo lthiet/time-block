@@ -86,12 +86,12 @@ test('combineIronLog prefers the second source per record', () => {
   assert.equal(c.weighins.length, 1);
 });
 
-test('progressGroups lists every exercise once, by split day, then the orphans', () => {
+test('progressGroups lists each current exercise once, by split day', () => {
   const programs = [
     { id: 'b', name: 'Thursday', order: 1, exercises: [{ id: 'dl', name: 'Deadlift' }, { id: 'bench', name: 'Bench' }] },
     { id: 'a', name: 'Tuesday', order: 0, exercises: [{ id: 'bench', name: 'Bench' }] },
     { id: 'c', name: 'Empty', order: 2, exercises: [] },
   ];
-  const g = progressGroups(programs, [{ ex: 'curl' }, { ex: 'bench' }, { ex: 'curl' }]);
-  assert.deepEqual(g.map((x) => [x.title, x.exercises.map((e) => e.id)]), [['Tuesday', ['bench']], ['Thursday', ['dl']], ['Other', ['curl']]]);
+  const g = progressGroups(programs);
+  assert.deepEqual(g.map((x) => [x.title, x.exercises.map((e) => e.id)]), [['Tuesday', ['bench']], ['Thursday', ['dl']]]);
 });
