@@ -744,6 +744,50 @@ export function heatmapWeeks(today, weeks) {
   return Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, i) => addDays(start, w * 7 + i)));
 }
 
+/** Monday-first weeks covering the whole month of `date`, from the Monday on or before the 1st to the Sunday on or after the last day. */
+export function monthWeeks(date) {
+  const first = `${date.slice(0, 8)}01`;
+  const last = addDays(addMonths(first, 1), -1);
+  const start = addDays(first, -((weekdayOf(first) + 6) % 7));
+  const weeks = [];
+  for (let d = start; d <= last; d = addDays(d, 7)) weeks.push(Array.from({ length: 7 }, (_, i) => addDays(d, i)));
+  return weeks;
+}
+
+/**
+ * Bars for all-day events across one week (7 dates): each span `{from, to}` (inclusive dates) that
+ * touches the week becomes `{item, col, span, lane, contL, contR}` — its first column (0-based), how many
+ * days it covers in this week, the row it's drawn on, and whether it carries on before/after the week.
+ * Earlier and longer events get the upper rows; a row is reused once the bar on it has ended.
+ */
+export function weekBars(week, spans) {
+  const first = week[0];
+  const last = week[week.length - 1];
+  const bars = spans.filter((s) => s.from <= last && s.to >= first).map((s) => {
+    const from = s.from < first ? first : s.from;
+    const to = s.to > last ? last : s.to;
+    const col = week.indexOf(from);
+    return { item: s, col, span: week.indexOf(to) - col + 1, contL: s.from < first, contR: s.to > last };
+  });
+  bars.sort((a, b) => a.col - b.col || b.span - a.span);
+  const ends = []; // last column taken on each lane
+  for (const b of bars) {
+    b.lane = ends.findIndex((end) => end < b.col);
+    if (b.lane < 0) b.lane = ends.length;
+    ends[b.lane] = b.col + b.span - 1;
+  }
+  return bars;
+}
+
+/** `date` moved by `n` months, its day clamped to the end of a shorter month (Jan 31 + 1 → Feb 28/29). */
+export function addMonths(date, n) {
+  const [y, m, d] = date.split('-').map(Number);
+  const target = new Date(y, m - 1 + n, 1);
+  const days = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d, days));
+  return ymd(target);
+}
+
 // ---------------------------------------------------------------- distractions
 
 /** Entries grouped by local day, newest day first; newest entry first inside each day too. */

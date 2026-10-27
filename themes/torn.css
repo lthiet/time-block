@@ -235,6 +235,34 @@ body { font-size: 15px; }
 .blk.draft.dragging, .blk.ghost { box-shadow: none; --shadow-off: 3px 6px; }
 .blk.stacked { box-shadow: none; } /* its shadow already sets it apart from the one beneath */
 
+/* Month view: a planner page ruled into days, every event marked with a highlighter in its calendar's
+   colour. All-day events are one long stroke across their days; new blocks are underlined in dashes. */
+.mo-head { background: #fffef8; border-bottom: 1.5px solid rgb(43 43 43 / .5); }
+.mo-head span { font: 400 13px var(--font); letter-spacing: .02em; text-transform: none; color: var(--muted); }
+.mo-grid { border-left: 2px solid #f0a4a4; }
+.mo-day { border-right-color: rgb(43 43 43 / .22); border-bottom-color: rgb(47 95 179 / .35); }
+.mo-week, .mo-list { row-gap: 2px; }
+.mo-dom { font: 700 17px/1 var(--font-display); color: var(--pen); }
+.mo-day.today { background: transparent; }
+.mo-dom.today { background: var(--highlighter); color: var(--pen); }
+.mo-week .allday-chip {
+  --ink-c: color-mix(in srgb, var(--c) 45%, transparent);
+  --fade-l: 3%;                      /* the stroke's ends thin out where the pen went down and lifted */
+  --fade-r: 97%;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 1px 5px 2px;
+  line-height: 1.2;
+  overflow: hidden;
+  background: linear-gradient(100deg, transparent calc(var(--fade-l) - 3%), var(--ink-c) var(--fade-l) var(--fade-r), transparent calc(var(--fade-r) + 3%)) center 60% / 100% 82% no-repeat;
+}
+.mo-week .allday-chip::before, .mo-week .allday-chip::after { content: none; } /* no post-it paper or shadow */
+.mo-bar.cont-l { --fade-l: 0%; }
+.mo-bar.cont-r { --fade-r: 100%; }
+.mo-time { font: 11px var(--font); opacity: .7; }
+.mo-ev.draft { --ink-c: color-mix(in srgb, var(--c) 22%, transparent); border: 0; border-bottom: 1.5px dashed var(--c); }
+.mo-week .allday-chip:hover { --ink-c: color-mix(in srgb, var(--c) 65%, transparent); }
+
 /* Fitness dialogs reuse the popup without its "Note to self" heading. */
 .capture-box.fit-modal-box::before { content: none; }
 
