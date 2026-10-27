@@ -284,8 +284,8 @@ body { font-size: 15px; }
 
 /* ---------- Event details: a cut square laid over the planner ---------- */
 /* The card's pseudo-elements are its paper and shadow, like a panel's. The paper only covers the
-   card's box, so the card itself doesn't scroll; its body does. The event's picture (or, without
-   one, a scrap of its post-it colour) is taped onto the paper. */
+   card's box, so the card itself doesn't scroll; its body does. The event's picture, when it has
+   one, is taped onto the paper. */
 .ev-card {
   --paper: #fffef8;
   isolation: isolate;
@@ -320,7 +320,10 @@ body { font-size: 15px; }
   rotate: .8deg;
 }
 .ev-banner img { border: 5px solid #ffffff; }   /* a print with its white border */
-.ev-banner.plain { height: 30px; }
+/* No picture: nothing is taped on, the banner only holds the close button. */
+.ev-banner.plain { height: 0; margin: 0; background: none; box-shadow: none; rotate: 0deg; }
+.ev-banner.plain::after { content: none; }
+.ev-banner.plain + .ev-body .ev-title { margin-right: 28px; }
 /* Tape across the top of the picture, the same strip that holds the panels down. */
 .ev-banner::after {
   content: "";
