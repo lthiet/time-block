@@ -1,9 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Hard black offset shadow behind a safety-yellow tile with a thick black border. -->
-  <rect x="8" y="8" width="54" height="54" fill="#141414"/>
-  <rect x="3" y="3" width="54" height="54" fill="#ffd200" stroke="#141414" stroke-width="4"/>
-  <!-- Three time blocks of different lengths. -->
-  <rect x="12" y="14" width="22" height="8" fill="#141414"/>
-  <rect x="12" y="27" width="36" height="8" fill="#ff6b00" stroke="#141414" stroke-width="2"/>
-  <rect x="12" y="40" width="15" height="8" fill="#141414"/>
+  <!-- Skin-agnostic: graphite tile, off-white ink, one moss accent. -->
+  <rect width="64" height="64" fill="#17191e"/>
+  <!-- A habit heatmap that fills in from left to right as the habit sticks; the accent is today. -->
+  <rect x="10" y="18" width="8" height="8" fill="#4a4d55"/>
+  <rect x="10" y="27" width="8" height="8" fill="#4a4d55"/>
+  <rect x="10" y="36" width="8" height="8" fill="#4a4d55"/>
+  <rect x="10" y="45" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="19" y="18" width="8" height="8" fill="#4a4d55"/>
+  <rect x="19" y="27" width="8" height="8" fill="#4a4d55"/>
+  <rect x="19" y="36" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="19" y="45" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="28" y="18" width="8" height="8" fill="#4a4d55"/>
+  <rect x="28" y="27" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="28" y="36" width="8" height="8" fill="#4a4d55"/>
+  <rect x="28" y="45" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="37" y="18" width="8" height="8" fill="#4a4d55"/>
+  <rect x="37" y="27" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="37" y="36" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="37" y="45" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="46" y="18" width="8" height="8" fill="#1f8a5b"/>
+  <rect x="46" y="27" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="46" y="36" width="8" height="8" fill="#f2f2ef"/>
+  <rect x="46" y="45" width="8" height="8" fill="#f2f2ef"/>
 </svg>
