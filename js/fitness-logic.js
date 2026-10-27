@@ -62,21 +62,18 @@ export function todaysProgram(programs, today) {
 export const exerciseSessions = (sessions, ex) => sessions.filter((s) => s.ex === ex).sort(byDate);
 
 /**
- * Every exercise, grouped by the split day it first appears in (days in order), then the ones with
- * sessions but no longer in any split under "Other". [{title, exercises: [{id, name}]}]; empty groups dropped.
+ * The exercises in your current splits, grouped by the split day each first appears in (days in order).
+ * Exercises dropped from every split keep their history but get no chart. [{title, exercises: [{id, name}]}]
  */
-export function progressGroups(programs, sessions) {
+export function progressGroups(programs) {
   const seen = new Set();
-  const groups = sortPrograms(programs).map((p) => ({
+  return sortPrograms(programs).map((p) => ({
     title: p.name,
     exercises: p.exercises.filter((e) => !seen.has(e.id) && seen.add(e.id)),
-  }));
-  const other = [...new Set(sessions.map((s) => s.ex))].filter((id) => !seen.has(id)).sort().map((id) => ({ id, name: id }));
-  groups.push({ title: 'Other', exercises: other });
-  return groups.filter((g) => g.exercises.length);
+  })).filter((g) => g.exercises.length);
 }
 
-export const maxWeight =(sets) => Math.max(0, ...sets.map((s) => num(s.weight)));
+export const maxWeight = (sets) => Math.max(0, ...sets.map((s) => num(s.weight)));
 
 export const setsToText = (sets) => (sets || []).map((s) => `${s.weight}×${s.reps}`).join(' / ');
 
