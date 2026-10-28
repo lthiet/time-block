@@ -1,5 +1,5 @@
-/* Base: layout and components, styled only through tokens. Each theme in themes/ sets the tokens and adds its own decoration.
-   The defaults below are a plain light look, so a token a theme leaves out still renders sensibly. */
+/* Base: layout and components, styled only through tokens. themes/paper.css sets the tokens and adds the cut-paper decoration.
+   The defaults below are a plain light look, so a token the theme leaves out still renders sensibly. */
 :root {
   /* Colour */
   --bg: #eeeeec;
@@ -147,8 +147,6 @@ kbd {
 .datebar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .account { margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 0; }
 #accountLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; font: var(--term-size) var(--font-term); }
-.skin-picker { display: inline-flex; align-items: center; gap: 6px; font: var(--label-font); text-transform: uppercase; letter-spacing: .1em; }
-.skin-picker select { font: 12px var(--font); text-transform: none; letter-spacing: 0; padding: 2px 6px; }
 
 /* ---------- Controls ---------- */
 input, select, textarea, button { font: inherit; color: inherit; }

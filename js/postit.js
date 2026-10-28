@@ -1,4 +1,4 @@
-// Paper skin: each square is cut from paper with scissors and each calendar block is a post-it,
+// Cut paper: each square is cut from paper with scissors and each calendar block is a post-it,
 // every one with its own procedurally generated outline. Cut squares have straight edges that change
 // angle where the scissors were re-gripped, and now and then a nick where a cut ran past a corner;
 // post-its waver a little and their bottom edge curls up off the page, unevenly. The outline is a clip-path
@@ -135,7 +135,7 @@ function cut(el) {
 
 let observer = null;
 
-/** Turn the generated outlines on or off; called whenever the skin changes. */
+/** Turn the generated outlines on or off. */
 export function setPostit(on) {
   observer?.disconnect();
   observer = null;

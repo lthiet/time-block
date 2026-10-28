@@ -125,7 +125,7 @@ function tracePath(ctx, pts, wobble, seed = 0) {
   }
 }
 
-// How a chart is drawn comes from the skin: the --chart-* tokens in styles.css and themes/*.css.
+// How a chart is drawn comes from the --chart-* tokens in styles.css and themes/paper.css.
 function chartStyle() {
   return {
     font: css('--chart-font') || '10px monospace',
@@ -775,9 +775,7 @@ export function init(d) {
   $('#fitImport').addEventListener('click', importIronLog);
   $('#fitModal').addEventListener('mousedown', (e) => { if (e.target.id === 'fitModal') closeModal(); });
   $('#fitModal').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeModal(); } });
-  // Charts read the skin's colours, so redraw once a newly picked skin's stylesheet has loaded.
-  $('#skin')?.addEventListener('load', () => render());
-  // …and once its web fonts arrive, since text already drawn on a canvas doesn't update by itself.
+  // Redraw once the web fonts arrive, since text already drawn on a canvas doesn't update by itself.
   document.fonts?.addEventListener('loadingdone', () => render());
   window.addEventListener('hashchange', applyHash);
 
