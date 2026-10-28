@@ -155,8 +155,7 @@ kbd { padding: 0; border: 0; background: none; color: var(--muted); font: 400 12
 kbd::before { content: "("; }
 kbd::after { content: ")"; }
 .btn.primary kbd { border: 0; }
-.skin-picker, .field > span, .field legend, .grid-head, .fit-set-head span, .fit-group, .fit-raw-head span { text-transform: none; letter-spacing: .02em; }
-.skin-picker { font: 400 14px var(--font); }
+.field > span, .field legend, .grid-head, .fit-set-head span, .fit-group, .fit-raw-head span { text-transform: none; letter-spacing: .02em; }
 .panel-title .badge { padding: 0 2px; background: transparent; color: var(--red-pen); font: 700 22px/1 var(--font-display); }
 .settings summary strong { background: var(--highlighter); color: var(--pen); }
 

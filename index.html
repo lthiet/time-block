@@ -5,22 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tracker</title>
   <meta name="description" content="Plan time blocks in Google Calendar, track tasks and habits, and log distractions.">
-  <meta name="theme-color" content="#ffd200">
+  <meta name="theme-color" content="#f3efe4">
   <link rel="icon" href="icon.svg?v=6" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=44">
-  <link rel="stylesheet" id="skin" href="themes/construction.css?v=18">
-  <script>
-    // Apply the saved skin before first paint; keep the pattern and the version (?v=) in sync with js/skin.js.
-    try {
-      const s = localStorage.getItem('tb.skin');
-      if (s && /^(construction|torn)$/.test(s)) document.getElementById('skin').href = `themes/${s}.css?v=18`;
-    } catch {}
-  </script>
+  <link rel="stylesheet" href="styles.css?v=45">
+  <link rel="stylesheet" href="themes/paper.css?v=19">
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=40"></script>
+  <script type="module" src="js/app.js?v=41"></script>
 </head>
 <body>
   <header class="topbar">
@@ -39,7 +32,6 @@
       <button type="button" class="icon-btn" id="nextDay" title="Next day (Alt+→)" aria-label="Next day">›</button>
     </div>
     <div class="account">
-      <label class="skin-picker"><span>Style</span><select id="skinSelect"></select></label>
       <span id="accountLabel" class="muted"></span>
       <button type="button" class="btn" id="signInBtn">Sign in with Google</button>
       <button type="button" class="btn ghost" id="signOutBtn" hidden>Sign out</button>

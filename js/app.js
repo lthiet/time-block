@@ -4,8 +4,8 @@ import * as gcal from './gcal.js?v=2'; // bump when gcal.js changes
 import * as drive from './drive.js';
 import * as L from './logic.js?v=26'; // bump with app.js?v= in index.html
 import * as J from './journal.js?v=27'; // keep in sync with fitness.js's import
-import * as Fit from './fitness.js?v=4';
-import { initSkinPicker } from './skin.js?v=7';
+import * as Fit from './fitness.js?v=5';
+import { setPostit } from './postit.js?v=2';
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -2274,7 +2274,7 @@ async function main() {
   new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${topbar.offsetHeight}px`)).observe(topbar);
   // Window resizes, a wrapping top bar, etc. change the room the calendar has to fill.
   new ResizeObserver(() => { if (fitHour()) renderAgenda(); }).observe($('#timeline'));
-  initSkinPicker($('#skinSelect'));
+  setPostit(true); // calendar blocks are post-its and squares are cut paper, with generated outlines
   loadPersisted();
   ensureTrailingBlank();
   $('#defaultDate').value = state.defaultDate;
