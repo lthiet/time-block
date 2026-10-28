@@ -5,7 +5,7 @@ import * as drive from './drive.js';
 import * as L from './logic.js?v=26'; // bump with app.js?v= in index.html
 import * as J from './journal.js?v=27'; // keep in sync with fitness.js's import
 import * as Fit from './fitness.js?v=5';
-import { setPostit } from './postit.js?v=2';
+import { setPostit } from './postit.js?v=3';
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;

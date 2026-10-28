@@ -14,7 +14,7 @@
     linear-gradient(90deg, transparent 54px, #f0a4a4 54px 56px, transparent 56px),
     repeating-linear-gradient(transparent 0 27px, #bcd0ec 27px 28px),
     #f3efe4;
-  --bar: #f3efe4;
+  --bar: transparent;                /* the top bar is a strip of paper, drawn below */
   --bar-text: var(--pen);
   --surface: transparent;
   --surface-solid: #fffef8;
@@ -81,7 +81,23 @@
 }
 
 body { font-size: 15px; }
-.topbar { border-bottom: 2px solid var(--pen); }
+
+/* The top bar is a long strip cut from the same paper, taped down at both ends. Its box keeps its
+   full size (the layout is sized from it); the paper is set in from it so the page shows round the cut. */
+.topbar { border-bottom: 0; isolation: isolate; padding: 12px 26px 10px; rotate: -.12deg; }
+.topbar::before, .topbar::after {
+  content: "";
+  position: absolute;
+  inset: 4px 10px 0;
+  pointer-events: none;
+  clip-path: var(--cut-edge);
+}
+.topbar::before { z-index: -1; background: #fffef8; }
+.topbar::after { z-index: -2; background: rgb(60 50 30 / .2); translate: 2px 4px; }
+.brand, .account { position: relative; }
+.brand { --tape-x: -14px; --tape-rot: -38deg; }
+.account { --tape-x: calc(100% + 14px); --tape-rot: 36deg; }
+.brand::after, .account::after { top: -6px; width: 70px; height: 24px; }
 .layout { padding-top: 22px; }
 
 /* Each square is laid down by hand at its own angle. Calendar and Time blocks tilt least,
@@ -114,7 +130,7 @@ body { font-size: 15px; }
 
 /* A strip of translucent tape holds each square down across its top edge, its short ends torn off.
    The square's pseudo-elements are taken by the paper, so the tape hangs off its first child. */
-.panel > :first-child::after {
+.panel > :first-child::after, .brand::after, .account::after {
   content: "";
   position: absolute;
   top: -11px;
