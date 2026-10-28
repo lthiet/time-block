@@ -560,6 +560,11 @@ input[type=checkbox] { accent-color: var(--accent-2); }
 .timeline.dragging { user-select: none; cursor: grabbing; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; padding-top: 8px; border-top: var(--bw-sm) solid var(--border); font-size: 11px; color: var(--muted); }
 .legend span { display: inline-flex; gap: 5px; align-items: center; }
+.legend-cal { display: inline-flex; gap: 5px; align-items: center; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.legend-cal .swatch { background: var(--c); }
+.legend-cal:hover { color: var(--text); }
+.legend-cal.off { opacity: .55; text-decoration: line-through; }
+.legend-cal.off .swatch { background: none; border-color: var(--c); }
 .legend .draft-swatch { background: color-mix(in srgb, var(--new) 30%, var(--surface-solid)); border: 1px dashed var(--new); border-left: 3px solid var(--new); }
 
 

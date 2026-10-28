@@ -66,6 +66,7 @@ const state = {
   calendars: [],
   targetId: null,
   checkIds: null, // null = defaults (primary + target) once calendars load
+  hiddenCalIds: new Set(), // calendars hidden from the calendar panel (still conflict-checked)
   includeAllDay: false,
   results: new Map(), // rowId -> {state, conflicts}
   saveErrors: new Map(), // rowId -> message from the last failed insert
@@ -118,6 +119,7 @@ function loadPersisted() {
     if (s) {
       state.targetId = s.targetId || null;
       state.checkIds = Array.isArray(s.checkIds) ? s.checkIds : null;
+      state.hiddenCalIds = new Set(Array.isArray(s.hiddenCalIds) ? s.hiddenCalIds : []);
       state.includeAllDay = !!s.includeAllDay;
       state.view = ['day', 'month'].includes(s.calView) ? s.calView : 'week';
       state.showDone = !!s.showDone;
@@ -167,7 +169,7 @@ function persistDraft() {
 function persistSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      targetId: state.targetId, checkIds: state.checkIds, includeAllDay: state.includeAllDay, calView: state.view,
+      targetId: state.targetId, checkIds: state.checkIds, hiddenCalIds: [...state.hiddenCalIds], includeAllDay: state.includeAllDay, calView: state.view,
       showDone: state.showDone, expanded: [...state.expanded].filter((id) => state.tasks.some((t) => t.id === id)),
     }));
   } catch { /* ignore */ }
@@ -563,6 +565,7 @@ function renderSettings() {
       h('span', { title: c.name }, c.name),
       c.primary ? h('span', { class: 'tag' }, 'primary') : null,
       c.id === state.targetId ? h('span', { class: 'tag' }, 'target') : null,
+      state.hiddenCalIds.has(c.id) ? h('span', { class: 'tag', title: 'Hidden on the calendar; click it in the legend to show it' }, 'hidden') : null,
     )));
   }
   $('#includeAllDay').checked = state.includeAllDay;
@@ -634,7 +637,7 @@ async function loadAgendaDay({ force = false } = {}) {
 
 /** Timed items (existing events + new blocks) for one day, laid out like a calendar app where they overlap. */
 function dayItems(date) {
-  const events = state.dayCache.get(date)?.events || [];
+  const events = (state.dayCache.get(date)?.events || []).filter((e) => !state.hiddenCalIds.has(e.calendarId));
   const dayStart = new Date(`${date}T00:00:00`).getTime();
   const toMin = (d) => Math.round((d.getTime() - dayStart) / 60000);
   const items = events.filter((e) => !e.allDay).map((e) => ({
@@ -757,7 +760,13 @@ function renderLegend() {
   const legendCals = state.calendars.filter((c) => (state.checkIds || []).includes(c.id));
   $('#legend').replaceChildren(
     h('span', {}, h('span', { class: 'swatch draft-swatch' }), 'New blocks'),
-    ...legendCals.map((c) => h('span', {}, h('span', { class: 'swatch', style: { background: c.color } }), c.name)),
+    ...legendCals.map((c) => {
+      const off = state.hiddenCalIds.has(c.id);
+      return h('button', {
+        type: 'button', class: `legend-cal${off ? ' off' : ''}`, 'data-cal-id': c.id, 'aria-pressed': String(!off),
+        title: off ? `Show ${c.name} on the calendar` : `Hide ${c.name} from the calendar (still checked for conflicts)`,
+      }, h('span', { class: 'swatch', style: { '--c': c.color } }), c.name);
+    }),
   );
 }
 
@@ -2177,6 +2186,14 @@ function wire() {
   for (const b of document.querySelectorAll('.agenda .view-toggle button')) {
     b.addEventListener('click', () => setView(b.dataset.view));
   }
+  $('#legend').addEventListener('click', (e) => {
+    const id = e.target.closest('.legend-cal')?.dataset.calId;
+    if (!id) return;
+    if (!state.hiddenCalIds.delete(id)) state.hiddenCalIds.add(id);
+    persistSettings();
+    renderAgenda();
+    renderSettings();
+  });
 
   wireTimelineDrag();
   wireTasks();
