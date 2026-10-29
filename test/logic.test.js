@@ -64,6 +64,10 @@ test('normalizeEvent filters free, declined, cancelled and all-day events', () =
   const n = normalizeEvent(allDay, cal, { includeAllDay: true });
   assert.ok(n.allDay);
   assert.equal(n.end - n.start, 24 * 3600 * 1000);
+  // Google marks all-day events free by default: the calendar view still shows them.
+  const freeAllDay = { ...allDay, transparency: 'transparent' };
+  assert.equal(normalizeEvent(freeAllDay, cal, { includeAllDay: true }), null);
+  assert.ok(normalizeEvent(freeAllDay, cal, { includeAllDay: true, includeFree: true }).allDay);
 });
 
 test('findConflicts: events, touching edges, intra-batch, invalid rows', () => {
