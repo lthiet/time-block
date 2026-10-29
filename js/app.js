@@ -619,7 +619,7 @@ async function loadAgendaDay({ force = false } = {}) {
     const lists = await Promise.all(cals.map((c) => gcal.listEvents(
       c.id, new Date(`${first}T00:00:00`), new Date(`${L.addDays(last, 1)}T00:00:00`))));
     const events = lists.flatMap((items, i) => items
-      .map((ev) => L.normalizeEvent(ev, cals[i], { includeAllDay: true }))
+      .map((ev) => L.normalizeEvent(ev, cals[i], { includeAllDay: true, includeFree: true }))
       .filter(Boolean));
     const at = Date.now();
     for (let d = first; d <= last; d = L.addDays(d, 1)) {

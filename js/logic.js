@@ -212,11 +212,12 @@ export function overlaps(a, b) {
 
 /**
  * Convert a Calendar API event into {id,title,start,end,allDay,calendarId,calendarName,color}
- * or null when it should not block time.
+ * or null when it should not block time. `includeFree` keeps events marked "free" (Google's default for
+ * all-day events), for showing on the calendar rather than checking conflicts.
  */
-export function normalizeEvent(ev, cal, { includeAllDay = false } = {}) {
+export function normalizeEvent(ev, cal, { includeAllDay = false, includeFree = false } = {}) {
   if (!ev || ev.status === 'cancelled') return null;
-  if (ev.transparency === 'transparent') return null;
+  if (ev.transparency === 'transparent' && !includeFree) return null;
   const self = (ev.attendees || []).find((a) => a.self);
   if (self && self.responseStatus === 'declined') return null;
   const allDay = !ev.start?.dateTime;
