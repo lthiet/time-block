@@ -108,14 +108,14 @@ export function cutOutline(seed, { inset = [1, 9] } = {}) {
   return `polygon(${pts.join(', ')})`;
 }
 
-const NOTES = '.blk, .allday-chip';
+const NOTES = '.blk';
 
 function seedFor(el, i) {
   return hashSeed(el.dataset.ev || el.dataset.rowId || `#${i}`);
 }
 
 function sizeFor(el) {
-  const h = parseFloat(el.style.height) || 20; // all-day chips have no set height
+  const h = parseFloat(el.style.height);
   const max = Math.min(4, h * 0.08); // a 30-minute block lifts barely 2px
   return { wobble: 0.5, lift: [max * 0.35, max], across: 2, down: 3 };
 }

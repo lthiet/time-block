@@ -5,7 +5,7 @@ import * as drive from './drive.js';
 import * as L from './logic.js?v=26'; // bump with app.js?v= in index.html
 import * as J from './journal.js?v=27'; // keep in sync with fitness.js's import
 import * as Fit from './fitness.js?v=5';
-import { setPostit } from './postit.js?v=3';
+import { setPostit } from './postit.js?v=4';
 
 const $ = (sel) => document.querySelector(sel);
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -667,11 +667,11 @@ function allDayChip(e) {
 function monthChip(i) {
   if (i.kind === 'event') {
     const time = `${fmtTime(i.ev.start)}–${fmtTime(i.ev.end)}`;
-    return h('span', { class: 'allday-chip mo-ev', style: { '--c': i.ev.color || 'var(--muted)' }, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}\nClick for details`, ...eventAttrs(i.ev) },
+    return h('span', { class: 'mo-ev', style: { '--c': i.ev.color || 'var(--muted)' }, title: `${i.ev.title}\n${time} · ${i.ev.calendarName}\nClick for details`, ...eventAttrs(i.ev) },
       h('span', { class: 'mo-time' }, fmtTime(i.ev.start)), i.ev.title);
   }
   const task = isTaskRow(i.row);
-  return h('span', { class: `allday-chip mo-ev draft${task ? ' task' : ''}`, 'data-row-id': i.row.id, title: `${i.row.title || '(untitled)'}\n${fmtHM(i.row.start)}–${fmtHM(i.row.end)} · new ${task ? 'task' : 'block'}` },
+  return h('span', { class: `mo-ev draft${task ? ' task' : ''}`, 'data-row-id': i.row.id, title: `${i.row.title || '(untitled)'}\n${fmtHM(i.row.start)}–${fmtHM(i.row.end)} · new ${task ? 'task' : 'block'}` },
     h('span', { class: 'mo-time' }, fmtHM(i.row.start)), i.row.title || '(untitled)');
 }
 

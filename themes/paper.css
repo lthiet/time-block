@@ -276,7 +276,7 @@ input[type=checkbox]:focus-visible { box-shadow: var(--focus-ring); }
 /* Events are post-its stuck on the planner page. Each has its own outline, generated in js/postit.js:
    edges that waver a little and a bottom edge curling up off the page. The paper is drawn in the
    curled outline and its shadow in the flat one, so the lifted edge shows the shadow beneath it. */
-.blk, .allday-chip {
+.blk {
   --note: color-mix(in srgb, var(--c) 42%, #fffef8);
   --note-edge: none;                 /* set per block by js/postit.js */
   --note-base: none;
@@ -293,14 +293,13 @@ input[type=checkbox]:focus-visible { box-shadow: var(--focus-ring); }
   overflow: clip;
   overflow-clip-margin: 6px;         /* room for the shadow */
 }
-.allday-chip { position: relative; }
-.blk::before, .blk::after, .allday-chip::before, .allday-chip::after {
+.blk::before, .blk::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
-.blk::before, .allday-chip::before {
+.blk::before {
   z-index: -1;
   clip-path: var(--note-edge);
   background:
@@ -310,7 +309,7 @@ input[type=checkbox]:focus-visible { box-shadow: var(--focus-ring); }
     var(--note);
 }
 /* The shadow is the flat outline. Under the lifted edge it is softer, light getting in beneath. */
-.blk::after, .allday-chip::after {
+.blk::after {
   z-index: -2;
   clip-path: var(--note-base);
   translate: var(--shadow-off);
@@ -340,8 +339,30 @@ input[type=checkbox]:focus-visible { box-shadow: var(--focus-ring); }
 .blk.draft.dragging, .blk.ghost { box-shadow: none; --shadow-off: 3px 6px; }
 .blk.stacked { box-shadow: none; } /* its shadow already sets it apart from the one beneath */
 
-/* Month view: a planner page ruled into days, every event marked with a highlighter in its calendar's
-   colour. All-day events are one long stroke across their days; new blocks are underlined in dashes. */
+/* All-day events aren't post-its but strips of washi tape in their calendar's colour: see-through,
+   faintly striped, the ends torn in a zigzag. A strip carrying on from last week or into next week
+   runs straight off the edge. */
+.allday-chip {
+  --tape: color-mix(in srgb, var(--c) 50%, transparent);
+  --zl: 4px;                         /* depth of the torn zigzag at each end */
+  --zr: 4px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--pen);
+  padding: 1px calc(var(--zr) + 5px) 1px calc(var(--zl) + 5px);
+  border: 0;
+  border-radius: 0;
+  background: repeating-linear-gradient(-60deg, rgb(255 255 255 / .22) 0 4px, transparent 4px 9px), var(--tape);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--zr)) 25%, 100% 50%, calc(100% - var(--zr)) 75%, 100% 100%,
+    0 100%, var(--zl) 75%, 0 50%, var(--zl) 25%);
+  cursor: pointer;
+}
+.allday-chip:hover { --tape: color-mix(in srgb, var(--c) 72%, transparent); }
+
+/* Month view: a planner page ruled into days. All-day events are tape across their days; other events
+   are written in pen under them, each marked with a dot in its calendar's colour; new blocks are
+   underlined in dashes. */
 .mo-head { background: #fffef8; border-bottom: 1.5px solid rgb(43 43 43 / .5); }
 .mo-head span { font: 400 13px var(--font); letter-spacing: .02em; text-transform: none; color: var(--muted); }
 .mo-grid { border-left: 2px solid #f0a4a4; }
@@ -350,23 +371,23 @@ input[type=checkbox]:focus-visible { box-shadow: var(--focus-ring); }
 .mo-dom { font: 700 17px/1 var(--font-display); color: var(--pen); }
 .mo-day.today { background: transparent; }
 .mo-dom.today { background: var(--highlighter); color: var(--pen); }
-.mo-week .allday-chip {
-  --ink-c: color-mix(in srgb, var(--c) 45%, transparent);
-  --fade-l: 3%;                      /* the stroke's ends thin out where the pen went down and lifted */
-  --fade-r: 97%;
-  font-size: 12px;
-  font-weight: 400;
-  padding: 1px 5px 2px;
-  line-height: 1.2;
-  overflow: hidden;
-  background: linear-gradient(100deg, transparent calc(var(--fade-l) - 3%), var(--ink-c) var(--fade-l) var(--fade-r), transparent calc(var(--fade-r) + 3%)) center 60% / 100% 82% no-repeat;
+.mo-week .allday-chip { font-size: 12px; line-height: 1.25; }
+.mo-bar.cont-l { --zl: 0px; }
+.mo-bar.cont-r { --zr: 0px; }
+.mo-ev { font: 400 12px/1.25 var(--font); color: var(--pen); padding: 1px 2px; border: 0; border-radius: 0; }
+.mo-ev::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--c);
+  vertical-align: 1px;
 }
-.mo-week .allday-chip::before, .mo-week .allday-chip::after { content: none; } /* no post-it paper or shadow */
-.mo-bar.cont-l { --fade-l: 0%; }
-.mo-bar.cont-r { --fade-r: 100%; }
+.mo-ev:hover { background: color-mix(in srgb, var(--c) 14%, transparent); }
 .mo-time { font: 11px var(--font); opacity: .7; }
-.mo-ev.draft { --ink-c: color-mix(in srgb, var(--c) 22%, transparent); border: 0; border-bottom: 1.5px dashed var(--c); }
-.mo-week .allday-chip:hover { --ink-c: color-mix(in srgb, var(--c) 65%, transparent); }
+.mo-ev.draft { border: 0; border-bottom: 1.5px dashed var(--c); }
 
 /* Fitness dialogs reuse the popup without its "Note to self" heading. */
 .capture-box.fit-modal-box::before { content: none; }
