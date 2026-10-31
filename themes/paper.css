@@ -396,6 +396,9 @@ input[type=checkbox]:focus-visible { box-shadow: var(--focus-ring); }
 .panel.fit-lifting { --paper: #fffef8; rotate: -.35deg; --tape-x: 47%; --tape-rot: -2.8deg; }
 .panel.fit-progress { --paper: #fbf6e9; rotate: .3deg; --tape-x: 53%; --tape-rot: 3.1deg; }
 .panel.fit-weight { --paper: #fffef8; rotate: -.2deg; --tape-x: 50%; --tape-rot: -1.4deg; }
+.panel.bud-overview { --paper: #fffef8; rotate: -.2deg; --tape-x: 47%; --tape-rot: -2.2deg; }
+.panel.bud-leaks { --paper: #fbf6e9; rotate: .25deg; --tape-x: 53%; --tape-rot: 2.6deg; }
+.panel.bud-transactions { --paper: #fffef8; rotate: -.15deg; --tape-x: 50%; --tape-rot: -1.2deg; }
 .fit-card-head h3 { font: 700 22px/1 var(--font-display); }
 .fit-last { font-size: 14px; }
 /* Each chart is a scrap of graph paper. */

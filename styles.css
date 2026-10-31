@@ -942,6 +942,51 @@ input.fit-in { width: 100%; padding: 4px 7px; font: 13px var(--font-mono); }
 .fit-raw-head span { font: var(--label-font); text-transform: uppercase; letter-spacing: .1em; color: var(--label); }
 .fit-raw-select { width: 100%; margin-bottom: 8px; }
 
+/* ---------- Budget (overview, leaks, transactions) ---------- */
+.bud-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.bud-toolbar input[type=search] { flex: 1 1 120px; min-width: 0; padding: 4px 7px; font: 13px var(--font); }
+.bud-toolbar select { max-width: 150px; }
+.bud-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.bud-note:empty { display: none; }
+.bud-note { margin-bottom: 6px; }
+.bud-warn { margin: 0 0 6px; padding: 4px 6px; border: var(--bw-sm) solid var(--bad); border-radius: 0; background: var(--bad-soft); }
+.bud-aside { margin: 4px 0 6px; }
+.bud-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 4px; }
+.bud-stat { display: grid; gap: 1px; padding: 5px 6px; min-width: 0; background: var(--surface-solid); border: var(--bw-sm) solid var(--border); border-radius: 0; }
+.bud-stat-label { font: var(--label-font); color: var(--label); }
+.bud-stat-value { font: 700 15px/1.2 var(--font-mono); color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+.bud-stat.neg .bud-stat-value { color: var(--bad); }
+.bud-bars { list-style: none; margin: 0; padding: 0; }
+.bud-bar { display: grid; grid-template-columns: minmax(0, 118px) minmax(0, 1fr) 54px; align-items: center; gap: 6px; width: 100%; padding: 2px 0; border: 0; background: none; color: var(--text); font: 12px var(--font); text-align: left; cursor: pointer; }
+.bud-bar:hover .bud-bar-name, .bud-bar.active .bud-bar-name { text-decoration: underline; }
+.bud-bar-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bud-bar-track { display: block; height: 10px; }
+.bud-bar-track i { display: block; height: 100%; background: var(--info); }
+.bud-bar-value { font: 12px var(--font-mono); text-align: right; }
+.bud-trend { display: flex; align-items: stretch; gap: 2px; height: 96px; overflow-x: auto; }
+.bud-col { flex: 1 0 22px; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; background: none; cursor: pointer; }
+.bud-col-bar { flex: 1 1 auto; display: flex; align-items: flex-end; min-height: 0; border-bottom: 1px solid var(--border); }
+.bud-col-bar i { display: block; width: 100%; background: var(--info); opacity: .55; }
+.bud-col:hover .bud-col-bar i, .bud-col.active .bud-col-bar i { opacity: 1; }
+.bud-col-label { font: 10px var(--font-mono); color: var(--muted); text-align: center; }
+.bud-leak .fit-card-head h3 { overflow: hidden; text-overflow: ellipsis; }
+.bud-leak-cost { flex: none; font: 12px var(--font-mono); }
+.bud-tx-list { list-style: none; margin: 0; padding: 0; }
+.bud-tx { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; grid-template-areas: "date name amount" "date cat one"; align-items: center; gap: 1px 4px; padding: 2px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.bud-tx-date { grid-area: date; align-self: start; }
+.bud-tx-name { grid-area: name; }
+.bud-tx-amount { grid-area: amount; }
+.bud-tx-cat { grid-area: cat; }
+.bud-tx-one { grid-area: one; justify-self: end; width: 26px; }
+.bud-tx.one-off .bud-tx-name { color: var(--muted); }
+.bud-tx-date { font: 11px var(--font-mono); color: var(--muted); }
+.bud-tx-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bud-tx-amount { font: 12px var(--font-mono); text-align: right; }
+.bud-tx-amount.in { color: var(--ok); }
+.bud-tx-cat { width: 100%; min-width: 0; font-size: 11px; padding: 1px; }
+.bud-tx-one { padding: 1px 0; }
+.bud-tx-one.active { background: var(--text); color: var(--surface-solid); }
+
 /* ---------- Narrow screens ---------- */
 /* Desktop: both panels fill the screen height; the block list and calendar scroll inside them. */
 @media (min-width: 901px) {
@@ -964,7 +1009,10 @@ input.fit-in { width: 100%; padding: 4px 7px; font: 13px var(--font-mono); }
   .fit-tabs button { flex: 1; padding: 6px 0; }
   .fitness[data-tab=lifting] > .panel:not([data-tab=lifting]),
   .fitness[data-tab=progress] > .panel:not([data-tab=progress]),
-  .fitness[data-tab=weight] > .panel:not([data-tab=weight]) { display: none; }
+  .fitness[data-tab=weight] > .panel:not([data-tab=weight]),
+  .budget[data-tab=overview] > .panel:not([data-tab=overview]),
+  .budget[data-tab=leaks] > .panel:not([data-tab=leaks]),
+  .budget[data-tab=transactions] > .panel:not([data-tab=transactions]) { display: none; }
   .lane-list { max-height: 40vh; overflow-y: auto; }
   .agenda { position: relative; top: auto; }
   .timeline { max-height: none; }
