@@ -13,7 +13,7 @@ const IMPORTED_KEY = 'tb.ironImported';
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.14.1';
 const BLANK_SETS = 3;
 
-let deps; // {h, todayStr, plural, fmtDay}
+let deps; // {h, todayStr, plural, onSection}
 const ui = {
   section: 'plan', tab: 'lifting', range: 'all', activeId: null,
   inputs: {}, // {exerciseId: [{weight, reps}]} — today's unsaved sets
@@ -47,11 +47,12 @@ const exerciseNames = () => {
 // ---------------------------------------------------------------- section switch
 
 function setSection(section) {
-  ui.section = section === 'fitness' ? 'fitness' : 'plan';
+  ui.section = ['fitness', 'budget'].includes(section) ? section : 'plan';
   const fit = ui.section === 'fitness';
-  $('#plan').hidden = fit;
+  $('#plan').hidden = ui.section !== 'plan';
   $('#fitness').hidden = !fit;
-  $('.datebar').hidden = fit;
+  $('#budget').hidden = ui.section !== 'budget';
+  $('.datebar').hidden = ui.section !== 'plan';
   $('#fitRange').hidden = !fit;
   for (const b of document.querySelectorAll('#sectionToggle button')) {
     const on = b.dataset.section === ui.section;
@@ -60,9 +61,10 @@ function setSection(section) {
   }
   lsSet(SECTION_KEY, ui.section);
   if (fit) render();
+  deps.onSection();
 }
 
-export const isFitness = () => ui.section === 'fitness';
+export const isPlan = () => ui.section === 'plan';
 
 function setTab(tab) {
   ui.tab = tab;
@@ -766,7 +768,7 @@ export function init(d) {
   for (const b of document.querySelectorAll('#sectionToggle button')) {
     b.addEventListener('click', () => {
       setSection(b.dataset.section);
-      history.replaceState(null, '', ui.section === 'fitness' ? '#app=fitness' : location.pathname + location.search);
+      history.replaceState(null, '', ui.section !== 'plan' ? `#app=${ui.section}` : location.pathname + location.search);
     });
   }
   for (const b of document.querySelectorAll('#fitTabs button')) b.addEventListener('click', () => setTab(b.dataset.tab));

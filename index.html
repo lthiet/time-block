@@ -10,10 +10,10 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=46">
-  <link rel="stylesheet" href="themes/paper.css?v=21">
+  <link rel="stylesheet" href="styles.css?v=49">
+  <link rel="stylesheet" href="themes/paper.css?v=22">
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script type="module" src="js/app.js?v=43"></script>
+  <script type="module" src="js/app.js?v=44"></script>
 </head>
 <body>
   <header class="topbar">
@@ -24,6 +24,7 @@
     <div class="view-toggle section-toggle" id="sectionToggle" role="group" aria-label="Section">
       <button type="button" data-section="plan">Plan</button>
       <button type="button" data-section="fitness">Fitness</button>
+      <button type="button" data-section="budget">Budget</button>
     </div>
     <div class="view-toggle" id="fitRange" role="group" aria-label="Chart range" hidden></div>
     <div class="datebar" role="group" aria-label="Planning date">
@@ -179,6 +180,37 @@
     <section class="panel fit-weight" data-tab="weight" aria-label="Body weight">
       <h2 class="panel-title">Body weight <span class="badge" id="fitLatest"></span></h2>
       <div id="fitWeight" class="fit-scroll"></div>
+    </section>
+  </main>
+
+  <main class="layout fitness budget" id="budget" data-tab="overview" hidden>
+    <div class="view-toggle fit-tabs" id="budTabs" role="group" aria-label="Budget panel">
+      <button type="button" data-tab="overview">Overview</button>
+      <button type="button" data-tab="leaks">Leaks</button>
+      <button type="button" data-tab="transactions">Transactions</button>
+    </div>
+    <section class="panel bud-overview" data-tab="overview" aria-label="Overview">
+      <h2 class="panel-title">Overview</h2>
+      <div class="bud-toolbar">
+        <button type="button" class="btn primary" id="budImport">Import statement</button>
+        <input type="file" id="budFile" accept=".csv,text/csv" multiple hidden>
+        <div id="budControls" class="bud-controls"></div>
+      </div>
+      <div id="budNote" class="muted small bud-note" role="status"></div>
+      <div id="budOverview" class="fit-scroll"></div>
+    </section>
+    <section class="panel bud-leaks" data-tab="leaks" aria-label="Leaks">
+      <h2 class="panel-title">Leaks <span class="muted small fit-sub">where you could save</span></h2>
+      <div id="budLeaks" class="fit-scroll"></div>
+    </section>
+    <section class="panel bud-transactions" data-tab="transactions" aria-label="Transactions">
+      <h2 class="panel-title">Transactions <span class="badge" id="budTxCount"></span></h2>
+      <div class="bud-toolbar">
+        <input type="search" id="budSearch" placeholder="Search merchant" aria-label="Search transactions" autocomplete="off">
+        <select id="budTxCategory" aria-label="Filter by category"></select>
+      </div>
+      <div id="budOffer" class="small bud-note" role="status"></div>
+      <ol id="budTxList" class="bud-tx-list fit-scroll"></ol>
     </section>
   </main>
 

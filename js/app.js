@@ -4,7 +4,8 @@ import * as gcal from './gcal.js?v=2'; // bump when gcal.js changes
 import * as drive from './drive.js';
 import * as L from './logic.js?v=26'; // bump with app.js?v= in index.html
 import * as J from './journal.js?v=27'; // keep in sync with fitness.js's import
-import * as Fit from './fitness.js?v=5';
+import * as Fit from './fitness.js?v=6';
+import * as Budget from './budget.js?v=1';
 import { setPostit } from './postit.js?v=4';
 
 const $ = (sel) => document.querySelector(sel);
@@ -253,17 +254,18 @@ function setSyncStatus(status, error = '') {
   renderSyncStatus();
 }
 
-/** Tasks, habits, distractions and fitness share one status line: the most pressing state wins. */
+/** Tasks, habits, distractions, fitness and budget share one status line: the most pressing state wins. */
 function overallSync() {
-  const all = [sync, ...J.stores(), ...Fit.stores()];
+  const all = [sync, ...J.stores(), ...Fit.stores(), ...Budget.stores()];
   return ['error', 'syncing', 'noscope'].map((s) => all.find((x) => x.status === s)).find(Boolean) || sync;
 }
 
-/** Sync the task board, habits, distractions and fitness data with Google Drive. */
+/** Sync the task board, habits, distractions, fitness and budget data with Google Drive. */
 function syncAll() {
   syncTasks();
   J.syncAll();
   Fit.syncAll();
+  Budget.syncAll();
 }
 
 function renderSyncStatus() {
@@ -2246,7 +2248,7 @@ function wire() {
 
   document.addEventListener('keydown', (e) => {
     if (e.target.closest?.('#evCard')) return; // the event card has its own keys
-    if (Fit.isFitness()) return; // these keys belong to the planner
+    if (!Fit.isPlan()) return; // these keys belong to the planner
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       if (state.checking || state.saving) return;
@@ -2282,7 +2284,8 @@ async function main() {
     h, flash, plural, fmtDay, fmtTime, todayStr, uid,
     isSignedIn: () => state.signedIn, onSyncStatus: renderSyncStatus, onAuthError: setSignedOut,
   });
-  Fit.init({ h, plural, todayStr });
+  Budget.init({ h, plural, todayStr });
+  Fit.init({ h, plural, todayStr, onSection: Budget.render });
   wire();
   wireEventCard();
   applyHash();
