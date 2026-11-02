@@ -509,7 +509,7 @@ function renderActions() {
   $('#targetSummary').textContent = target ? target.name : (state.signedIn ? 'no calendar selected' : '—');
   const checking = state.calendars.filter((c) => (state.checkIds || []).includes(c.id));
   $('#checkSummary').textContent = checking.length
-    ? `· checking ${checking.map((c) => c.name).join(', ')}` : '';
+    ? `· showing ${checking.map((c) => c.name).join(', ')}` : '';
 }
 
 let flashTimer = null;
