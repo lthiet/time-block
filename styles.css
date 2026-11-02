@@ -567,6 +567,9 @@ input[type=checkbox] { accent-color: var(--accent-2); }
 .legend-cal:hover { color: var(--text); }
 .legend-cal.off { opacity: .55; text-decoration: line-through; }
 .legend-cal.off .swatch { background: none; border-color: var(--c); }
+.legend-cal.add { opacity: .55; }
+.legend-cal.add .swatch { background: none; border: 1px dashed var(--c); }
+.legend-cal.add:hover { opacity: 1; }
 .legend .draft-swatch { background: color-mix(in srgb, var(--new) 30%, var(--surface-solid)); border: 1px dashed var(--new); border-left: 3px solid var(--new); }
 
 

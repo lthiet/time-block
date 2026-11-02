@@ -68,6 +68,7 @@ const state = {
   targetId: null,
   checkIds: null, // null = defaults (primary + target) once calendars load
   hiddenCalIds: new Set(), // calendars hidden from the calendar panel (still conflict-checked)
+  knownCalIds: null, // calendars seen before; one that shows up later is ticked automatically
   includeAllDay: false,
   results: new Map(), // rowId -> {state, conflicts}
   saveErrors: new Map(), // rowId -> message from the last failed insert
@@ -121,6 +122,7 @@ function loadPersisted() {
       state.targetId = s.targetId || null;
       state.checkIds = Array.isArray(s.checkIds) ? s.checkIds : null;
       state.hiddenCalIds = new Set(Array.isArray(s.hiddenCalIds) ? s.hiddenCalIds : []);
+      state.knownCalIds = Array.isArray(s.knownCalIds) ? new Set(s.knownCalIds) : null;
       state.includeAllDay = !!s.includeAllDay;
       state.view = ['day', 'month'].includes(s.calView) ? s.calView : 'week';
       state.showDone = !!s.showDone;
@@ -170,7 +172,8 @@ function persistDraft() {
 function persistSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      targetId: state.targetId, checkIds: state.checkIds, hiddenCalIds: [...state.hiddenCalIds], includeAllDay: state.includeAllDay, calView: state.view,
+      targetId: state.targetId, checkIds: state.checkIds, hiddenCalIds: [...state.hiddenCalIds],
+      knownCalIds: state.knownCalIds ? [...state.knownCalIds] : null, includeAllDay: state.includeAllDay, calView: state.view,
       showDone: state.showDone, expanded: [...state.expanded].filter((id) => state.tasks.some((t) => t.id === id)),
     }));
   } catch { /* ignore */ }
@@ -509,7 +512,7 @@ function renderActions() {
   $('#targetSummary').textContent = target ? target.name : (state.signedIn ? 'no calendar selected' : '—');
   const checking = state.calendars.filter((c) => (state.checkIds || []).includes(c.id));
   $('#checkSummary').textContent = checking.length
-    ? `· checking ${checking.map((c) => c.name).join(', ')}` : '';
+    ? `· showing ${checking.map((c) => c.name).join(', ')}` : '';
 }
 
 let flashTimer = null;
@@ -553,15 +556,7 @@ function renderSettings() {
     list.replaceChildren(...state.calendars.map((c) => h('label', {},
       h('input', {
         type: 'checkbox', value: c.id, checked: state.checkIds.includes(c.id),
-        onchange: (e) => {
-          const set = new Set(state.checkIds);
-          e.target.checked ? set.add(c.id) : set.delete(c.id);
-          state.checkIds = state.calendars.map((x) => x.id).filter((id) => set.has(id));
-          persistSettings();
-          state.dayCache.clear();
-          onRowsChanged({ structural: false });
-          loadAgendaDay();
-        },
+        onchange: (e) => setCalendarChecked(c.id, e.target.checked),
       }),
       h('span', { class: 'swatch', style: { background: c.color } }),
       h('span', { title: c.name }, c.name),
@@ -571,6 +566,19 @@ function renderSettings() {
     )));
   }
   $('#includeAllDay').checked = state.includeAllDay;
+}
+
+/** Tick or untick a calendar: ticked calendars are shown on the calendar and checked for conflicts. */
+function setCalendarChecked(id, on) {
+  const set = new Set(state.checkIds);
+  on ? set.add(id) : set.delete(id);
+  state.checkIds = state.calendars.map((x) => x.id).filter((x) => set.has(x));
+  if (on) state.hiddenCalIds.delete(id);
+  persistSettings();
+  state.dayCache.clear();
+  renderSettings();
+  onRowsChanged({ structural: false });
+  loadAgendaDay();
 }
 
 // ---------------------------------------------------------------- calendar panel (day / week / month)
@@ -759,7 +767,9 @@ function blockEl(i, px) {
 }
 
 function renderLegend() {
-  const legendCals = state.calendars.filter((c) => (state.checkIds || []).includes(c.id));
+  const checked = new Set(state.checkIds || []);
+  const legendCals = state.calendars.filter((c) => checked.has(c.id));
+  const otherCals = state.signedIn ? state.calendars.filter((c) => !checked.has(c.id)) : [];
   $('#legend').replaceChildren(
     h('span', {}, h('span', { class: 'swatch draft-swatch' }), 'New blocks'),
     ...legendCals.map((c) => {
@@ -769,6 +779,11 @@ function renderLegend() {
         title: off ? `Show ${c.name} on the calendar` : `Hide ${c.name} from the calendar (still checked for conflicts)`,
       }, h('span', { class: 'swatch', style: { '--c': c.color } }), c.name);
     }),
+    // Calendars that aren't ticked yet: one click adds them, like ticking them under ⚙.
+    ...otherCals.map((c) => h('button', {
+      type: 'button', class: 'legend-cal add', 'data-cal-id': c.id, 'data-add': '1',
+      title: `Show ${c.name} on the calendar (also checks it for conflicts)`,
+    }, h('span', { class: 'swatch', style: { '--c': c.color } }), `+ ${c.name}`)),
   );
 }
 
@@ -2108,15 +2123,11 @@ async function doSignIn() {
   await afterSignIn();
 }
 
-async function afterSignIn() {
-  renderAccount();
-  try {
-    state.calendars = await gcal.listCalendars();
-  } catch (e) {
-    flash('bad', `Couldn't load calendars: ${e.message}`);
-    if (e instanceof gcal.AuthError) setSignedOut();
-    return;
-  }
+/**
+ * Settle settings against a freshly loaded calendar list: forget calendars that are gone, find Time Blocking
+ * and Tasks by name, and tick calendars that weren't there last time. Returns those new calendars.
+ */
+function applyCalendars() {
   const primary = state.calendars.find((c) => c.primary);
   if (primary) {
     state.email = primary.id;
@@ -2127,10 +2138,47 @@ async function afterSignIn() {
     state.targetId = byName?.id || null;
   }
   state.tasksCalId = state.calendars.find((c) => c.name?.trim().toLowerCase() === TASKS_CALENDAR_NAME.toLowerCase())?.id || null;
-  const known = new Set(state.calendars.map((c) => c.id));
+  const ids = state.calendars.map((c) => c.id);
+  const added = state.checkIds && state.knownCalIds ? state.calendars.filter((c) => !state.knownCalIds.has(c.id)) : [];
   if (!state.checkIds) state.checkIds = [primary?.id, state.targetId, state.tasksCalId].filter(Boolean);
-  state.checkIds = state.checkIds.filter((id) => known.has(id));
+  const checked = new Set([...state.checkIds, ...added.map((c) => c.id)]);
+  state.checkIds = ids.filter((id) => checked.has(id));
+  state.knownCalIds = new Set(ids);
   persistSettings();
+  return added;
+}
+
+let calendarsLoadedAt = 0;
+/** Pick up calendars added, removed or renamed in Google Calendar while this tab was open. */
+async function refreshCalendars() {
+  if (!state.signedIn || !auth.isSignedIn() || Date.now() - calendarsLoadedAt < SYNC_MIN_GAP) return;
+  calendarsLoadedAt = Date.now();
+  let list;
+  try {
+    list = await gcal.listCalendars();
+  } catch {
+    return; // keep the list we have; the next visit tries again
+  }
+  state.calendars = list;
+  const added = applyCalendars();
+  state.dayCache.clear();
+  renderSettings();
+  renderAll();
+  loadAgendaDay();
+  if (added.length) flash('ok', `Added ${added.map((c) => `“${c.name}”`).join(' and ')} to the calendar. Untick under ⚙ to remove.`);
+}
+
+async function afterSignIn() {
+  renderAccount();
+  try {
+    state.calendars = await gcal.listCalendars();
+  } catch (e) {
+    flash('bad', `Couldn't load calendars: ${e.message}`);
+    if (e instanceof gcal.AuthError) setSignedOut();
+    return;
+  }
+  calendarsLoadedAt = Date.now();
+  applyCalendars();
   if (!state.targetId) {
     flash('bad', `No calendar named “${TARGET_CALENDAR_NAME}” found. Create it in Google Calendar, or pick another under ⚙.`, { sticky: true });
     $('#settings').open = true;
@@ -2189,8 +2237,10 @@ function wire() {
     b.addEventListener('click', () => setView(b.dataset.view));
   }
   $('#legend').addEventListener('click', (e) => {
-    const id = e.target.closest('.legend-cal')?.dataset.calId;
+    const btn = e.target.closest('.legend-cal');
+    const id = btn?.dataset.calId;
     if (!id) return;
+    if (btn.dataset.add) { setCalendarChecked(id, true); return; }
     if (!state.hiddenCalIds.delete(id)) state.hiddenCalIds.add(id);
     persistSettings();
     renderAgenda();
@@ -2264,7 +2314,9 @@ function wire() {
   window.addEventListener('beforeunload', persistDraft);
   // Pick up changes made on another device when coming back to this tab.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && Date.now() - sync.lastAt > SYNC_MIN_GAP) syncAll();
+    if (document.visibilityState !== 'visible') return;
+    if (Date.now() - sync.lastAt > SYNC_MIN_GAP) syncAll();
+    refreshCalendars();
   });
   // Keep the "now" line and "today" label current if the tab stays open.
   setInterval(() => { renderAgenda(); renderTasks(); J.render(); Fit.render(); }, 5 * 60_000);
