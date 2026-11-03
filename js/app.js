@@ -4,7 +4,7 @@ import * as gcal from './gcal.js?v=2'; // bump when gcal.js changes
 import * as drive from './drive.js';
 import * as L from './logic.js?v=26'; // bump with app.js?v= in index.html
 import * as J from './journal.js?v=27'; // keep in sync with fitness.js's import
-import * as Fit from './fitness.js?v=6';
+import * as Fit from './fitness.js?v=7';
 import * as Budget from './budget.js?v=1';
 import { setPostit } from './postit.js?v=4';
 

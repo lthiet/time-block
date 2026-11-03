@@ -95,3 +95,25 @@ test('progressGroups lists each current exercise once, by split day', () => {
   const g = progressGroups(programs);
   assert.deepEqual(g.map((x) => [x.title, x.exercises.map((e) => e.id)]), [['Tuesday', ['bench']], ['Thursday', ['dl']]]);
 });
+
+test('timed exercises: durations parse, format and round-trip through text', async () => {
+  const { parseDuration, fmtDuration, maxSecs, isTimed } = await import('../js/fitness-logic.js');
+  assert.deepEqual(['45', '45s', '1:30', '1m30s', '2m', '1.5 min', '1:02:05', '', 'abc'].map(parseDuration), [45, 45, 90, 90, 120, 90, 3725, 0, 0]);
+  assert.deepEqual([45, 90, 3725].map(fmtDuration), ['45s', '1:30', '1:02:05']);
+  const sets = [{ weight: '', secs: '45' }, { weight: '20', secs: '90' }];
+  assert.equal(setsToText(sets), '45s / 20×1:30');
+  assert.deepEqual(textToSets('45s / 20×1:30 / 80×5 / 12'), [...sets, { weight: '80', reps: '5' }]);
+  assert.equal(maxSecs(sets), 90);
+  assert.equal(isTimed({ kind: 'time' }), true);
+  assert.deepEqual(cleanPrograms([{ id: 'a', exercises: [{ id: 'p', name: 'Plank', kind: 'time' }, { id: 'b', name: 'B', kind: 'junk' }] }])[0].exercises,
+    [{ id: 'p', name: 'Plank', kind: 'time' }, { id: 'b', name: 'B' }]);
+  assert.deepEqual(cleanSessions([{ ex: 'p', date: '2026-10-01', sets: [{ weight: '', secs: '60' }, { secs: '' }] }])[0].sets, [{ weight: '', secs: '60' }]);
+});
+
+test('sessionsFromInputs reads time for timed exercises', () => {
+  const out = sessionsFromInputs({
+    plank: [{ weight: '', reps: '', time: '1:00' }, { weight: '', reps: '', time: '' }],
+    bench: [{ weight: '80', reps: '5', time: '' }],
+  }, '2026-10-27', new Set(['plank']));
+  assert.deepEqual(out.map((s) => s.sets), [[{ weight: '', secs: '60' }], [{ weight: '80', reps: '5' }]]);
+});
