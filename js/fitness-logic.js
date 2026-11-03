@@ -1,7 +1,9 @@
 // Pure helpers for the Fitness section (lifting log, progress, body weight), ported from Iron Log.
 // Everything is a flat record list so it syncs through the same per-record store as habits:
-//   programs  {id, name, order, exercises: [{id, name}]}
-//   sessions  {id: "<exercise>@<date>", ex, date, sets: [{weight, reps}]}
+//   programs  {id, name, order, exercises: [{id, name, kind?: 'time'}]}
+//   sessions  {id: "<exercise>@<date>", ex, date, sets: [{weight, reps} | {weight, secs}]}
+// An exercise is rep-based unless its kind is 'time' (planks, hangs, carries); its sets then hold
+// seconds instead of reps, and the weight is optional.
 //   weigh-ins {id: <date>, date, weight}
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -20,14 +22,22 @@ const num = (v) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : 0;
 };
-const cleanSet = (s) => ({ weight: String(s?.weight ?? '').trim(), reps: String(s?.reps ?? '').trim() });
+const cleanSet = (s) => {
+  const weight = String(s?.weight ?? '').trim();
+  const secs = String(s?.secs ?? '').trim();
+  return secs ? { weight, secs } : { weight, reps: String(s?.reps ?? '').trim() };
+};
+/** A rep set needs weight and reps; a timed set only needs its duration. */
+const isDone = (s) => (s.secs ? num(s.secs) > 0 : Boolean(s.weight && s.reps));
+const cleanExercise = (e) => ({ id: String(e.id), name: String(e.name || ''), ...(e.kind === 'time' ? { kind: 'time' } : {}) });
+export const isTimed = (ex) => ex?.kind === 'time';
 const stamps = (x) => ({ createdAt: Number(x.createdAt) || 0, updatedAt: Number(x.updatedAt) || 0 });
 
 export function cleanPrograms(list) {
   if (!Array.isArray(list)) return [];
   return list.filter((p) => p && p.id).map((p, i) => ({
     id: String(p.id), name: String(p.name || ''), order: Number.isFinite(p.order) ? p.order : i,
-    exercises: (Array.isArray(p.exercises) ? p.exercises : []).filter((e) => e && e.id).map((e) => ({ id: String(e.id), name: String(e.name || '') })),
+    exercises: (Array.isArray(p.exercises) ? p.exercises : []).filter((e) => e && e.id).map(cleanExercise),
     ...stamps(p),
   }));
 }
@@ -36,7 +46,7 @@ export function cleanSessions(list) {
   if (!Array.isArray(list)) return [];
   return list.filter((s) => s && s.ex && DATE_RE.test(s.date || '')).map((s) => ({
     id: sessionId(s.ex, s.date), ex: String(s.ex), date: s.date,
-    sets: (Array.isArray(s.sets) ? s.sets : []).map(cleanSet).filter((x) => x.weight && x.reps),
+    sets: (Array.isArray(s.sets) ? s.sets : []).map(cleanSet).filter(isDone),
     ...stamps(s),
   }));
 }
@@ -75,23 +85,61 @@ export function progressGroups(programs) {
 
 export const maxWeight = (sets) => Math.max(0, ...sets.map((s) => num(s.weight)));
 
-export const setsToText = (sets) => (sets || []).map((s) => `${s.weight}×${s.reps}`).join(' / ');
+export const maxSecs = (sets) => Math.max(0, ...sets.map((s) => num(s.secs)));
 
-/** "75×5 / 80x3" → [{weight:'75',reps:'5'}, {weight:'80',reps:'3'}]; unreadable parts are dropped. */
+/** 45 → "45s", 90 → "1:30", 3725 → "1:02:05". */
+export function fmtDuration(secs) {
+  const t = Math.round(num(secs));
+  if (t < 60) return `${t}s`;
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = String(t % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
+
+/** "45", "45s", "1:30", "1m30s", "2m", "1.5m" → seconds; 0 when unreadable. */
+export function parseDuration(text) {
+  const t = String(text ?? '').trim().toLowerCase().replace(',', '.');
+  if (!t) return 0;
+  if (/^\d+(:\d{1,2}){1,2}$/.test(t)) return t.split(':').reduce((acc, p) => acc * 60 + Number(p), 0);
+  const m = t.match(/^(?:(\d+(?:\.\d+)?)\s*h)?\s*(?:(\d+(?:\.\d+)?)\s*m(?:in)?)?\s*(?:(\d+(?:\.\d+)?)\s*s(?:ec)?)?$/);
+  if (m && (m[1] || m[2] || m[3])) return Math.round((num(m[1]) * 3600) + (num(m[2]) * 60) + num(m[3]));
+  return /^\d+(\.\d+)?$/.test(t) ? Math.round(Number(t)) : 0;
+}
+
+const setToText = (s) => {
+  if (!s.secs) return `${s.weight}×${s.reps}`;
+  return s.weight ? `${s.weight}×${fmtDuration(s.secs)}` : fmtDuration(s.secs);
+};
+export const setsToText = (sets) => (sets || []).map(setToText).join(' / ');
+
+/**
+ * "75×5 / 80x3" → [{weight:'75',reps:'5'}, {weight:'80',reps:'3'}]; timed sets read as "45s", "1:30"
+ * or "20×45s" → {weight, secs}. Unreadable parts are dropped.
+ */
 export function textToSets(text) {
   return String(text || '').split('/').map((p) => {
-    const m = p.trim().match(/^([0-9.]+)\s*[×xX*]\s*([0-9]+)$/);
-    return m ? { weight: m[1], reps: m[2] } : null;
+    const part = p.trim();
+    const m = part.match(/^([0-9.]+)\s*[×xX*]\s*([0-9]+)$/);
+    if (m) return { weight: m[1], reps: m[2] };
+    const w = part.match(/^([0-9.]+)\s*[×xX*]\s*(.+)$/);
+    const secs = parseDuration(w ? w[2] : part);
+    // A bare number is a rep count gone wrong, not a duration; timed sets carry a unit or a colon.
+    if (!secs || !/[:hms]/i.test(w ? w[2] : part)) return null;
+    return { weight: w ? w[1] : '', secs: String(secs) };
   }).filter(Boolean);
 }
 
 /**
  * Turn today's set inputs into session records: one per exercise that has at least one complete set.
- * `inputs` is {exerciseId: [{weight, reps}]}.
+ * `inputs` is {exerciseId: [{weight, reps, time}]}; exercises listed in `timed` read `time` (any
+ * duration parseDuration understands) instead of reps.
  */
-export function sessionsFromInputs(inputs, date) {
+export function sessionsFromInputs(inputs, date, timed = new Set()) {
   return Object.entries(inputs).map(([ex, sets]) => {
-    const done = sets.map(cleanSet).filter((s) => s.weight && s.reps);
+    const done = sets.map((s) => (timed.has(ex)
+      ? cleanSet({ weight: s.weight, secs: parseDuration(s.time) || '' })
+      : cleanSet({ weight: s.weight, reps: s.reps }))).filter(isDone);
     return done.length ? { id: sessionId(ex, date), ex, date, sets: done } : null;
   }).filter(Boolean);
 }

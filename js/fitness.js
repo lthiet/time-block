@@ -3,7 +3,7 @@
 // with the same per-record store as habits.
 import { IRON_LOG_FIREBASE } from '../config.js';
 import { createStore } from './journal.js?v=27'; // must match app.js's import, so both share one module
-import * as F from './fitness-logic.js?v=3';
+import * as F from './fitness-logic.js?v=4';
 
 const $ = (sel) => document.querySelector(sel);
 const SECTION_KEY = 'tb.section';
@@ -16,7 +16,7 @@ const BLANK_SETS = 3;
 let deps; // {h, todayStr, plural, onSection}
 const ui = {
   section: 'plan', tab: 'lifting', range: 'all', activeId: null,
-  inputs: {}, // {exerciseId: [{weight, reps}]} — today's unsaved sets
+  inputs: {}, // {exerciseId: [{weight, reps, time}]} — today's unsaved sets
   saved: false, importing: false,
 };
 
@@ -43,6 +43,29 @@ const exerciseNames = () => {
   for (const p of programs.items) for (const e of p.exercises) names[e.id] = e.name;
   return names;
 };
+/** Ids of the exercises logged by time rather than reps. */
+const timedIds = () => new Set(programs.items.flatMap((p) => p.exercises.filter(F.isTimed).map((e) => e.id)));
+
+/** Switch an exercise between reps and time, in every split day it appears in. */
+function setKind(exId, timed) {
+  const now = Date.now();
+  programs.items = programs.items.map((p) => (p.exercises.some((e) => e.id === exId) ? {
+    ...p, updatedAt: now,
+    exercises: p.exercises.map((e) => (e.id !== exId ? e : timed ? { ...e, kind: 'time' } : { id: e.id, name: e.name })),
+  } : p));
+  programs.persist();
+  render();
+}
+
+/** A small Reps | Time switch. */
+function kindToggle(timed, onChange, label) {
+  const { h } = deps;
+  return h('div', { class: 'view-toggle fit-kind', role: 'group', 'aria-label': label },
+    [[false, 'Reps'], [true, 'Time']].map(([t, text]) => h('button', {
+      type: 'button', class: t === timed ? 'active' : '', 'aria-pressed': String(t === timed),
+      onclick: () => { if (t !== timed) onChange(t); },
+    }, text)));
+}
 
 // ---------------------------------------------------------------- section switch
 
@@ -266,7 +289,7 @@ const fmtShort = (date) => new Date(`${date}T00:00:00`).toLocaleDateString('en-G
 // ---------------------------------------------------------------- lifting log
 
 function blankSets() {
-  return Array.from({ length: BLANK_SETS }, () => ({ weight: '', reps: '' }));
+  return Array.from({ length: BLANK_SETS }, () => ({ weight: '', reps: '', time: '' }));
 }
 
 function inputsFor(exId) {
@@ -298,19 +321,20 @@ function renderPrograms() {
   $('#fitDay').textContent = active ? active.name : '';
 }
 
-function setRow(exId, set, i) {
+function setRow(exId, set, i, timed) {
   const { h } = deps;
   const sets = inputsFor(exId);
   const field = (key, placeholder, mode) => h('input', {
-    type: 'text', inputmode: mode, class: `fit-in${key === 'weight' ? ' has-unit' : ''}`, value: set[key], placeholder,
+    type: 'text', inputmode: mode, class: `fit-in${key === 'weight' ? ' has-unit' : ''}`, value: set[key] ?? '', placeholder,
     autocomplete: 'off', 'data-k': `${exId}:${i}:${key}`, 'aria-label': `Set ${i + 1} ${key}`,
-    oninput: (e) => { sets[i][key] = e.target.value.replace(',', '.'); ui.saved = false; saveDraft(); },
+    oninput: (e) => { sets[i][key] = key === 'time' ? e.target.value : e.target.value.replace(',', '.'); ui.saved = false; saveDraft(); },
     onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); focusNext(e.target); } },
   });
   return h('div', { class: 'fit-set' },
     h('span', { class: 'fit-num' }, String(i + 1)),
-    h('label', { class: 'fit-unit' }, field('weight', 'kg', 'decimal'), h('span', {}, 'kg')),
-    field('reps', 'reps', 'numeric'),
+    h('label', { class: 'fit-unit' }, field('weight', timed ? 'opt.' : 'kg', 'decimal'), h('span', {}, 'kg')),
+    // Time takes "45", "45s", "1:30" or "2m"; a text keyboard so the colon is reachable on a phone.
+    timed ? field('time', '0:45', 'text') : field('reps', 'reps', 'numeric'),
     h('button', {
       type: 'button', class: 'icon-btn', 'aria-label': `Remove set ${i + 1}`, title: 'Remove set',
       onclick: () => { sets.splice(i, 1); saveDraft(); renderLog(); },
@@ -326,6 +350,7 @@ function focusNext(el) {
 
 function exerciseCard(ex) {
   const { h } = deps;
+  const timed = F.isTimed(ex);
   const sets = inputsFor(ex.id);
   const hist = F.exerciseSessions(sessions.items, ex.id);
   const last = hist[hist.length - 1];
@@ -333,14 +358,15 @@ function exerciseCard(ex) {
     h('div', { class: 'fit-card-head' },
       h('h3', {}, ex.name || 'Untitled'),
       last ? h('span', { class: 'fit-last', title: `Last session, ${fmtShort(last.date)}` }, `${fmtShort(last.date)} · ${F.setsToText(last.sets)}`) : null,
+      kindToggle(timed, (t) => setKind(ex.id, t), `Log ${ex.name || 'exercise'} by`),
     ),
-    h('div', { class: 'fit-set fit-set-head', 'aria-hidden': 'true' }, h('span', {}, '#'), h('span', {}, 'Weight'), h('span', {}, 'Reps'), h('span', {})),
-    sets.map((s, i) => setRow(ex.id, s, i)),
+    h('div', { class: 'fit-set fit-set-head', 'aria-hidden': 'true' }, h('span', {}, '#'), h('span', {}, 'Weight'), h('span', {}, timed ? 'Time' : 'Reps'), h('span', {})),
+    sets.map((s, i) => setRow(ex.id, s, i, timed)),
     h('button', {
       type: 'button', class: 'linkish fit-add',
       onclick: () => {
-        const l = sets[sets.length - 1] || { weight: '', reps: '' };
-        sets.push({ weight: l.weight, reps: l.reps });
+        const l = sets[sets.length - 1] || {};
+        sets.push({ weight: l.weight ?? '', reps: l.reps ?? '', time: l.time ?? '' });
         saveDraft();
         renderLog();
         const ins = document.querySelectorAll(`#fitLog [data-k^="${CSS.escape(ex.id)}:"]`);
@@ -375,9 +401,9 @@ function saveSession() {
   const prog = activeProgram();
   if (!prog) return;
   const inputs = Object.fromEntries(prog.exercises.map((e) => [e.id, inputsFor(e.id)]));
-  const records = F.sessionsFromInputs(inputs, deps.todayStr());
+  const records = F.sessionsFromInputs(inputs, deps.todayStr(), timedIds());
   if (!records.length) {
-    flashNote('Fill in weight and reps for at least one set.');
+    flashNote('Fill in at least one set: weight and reps, or a time.');
     return;
   }
   sessions.items = F.upsert(sessions.items, records);
@@ -406,12 +432,16 @@ function renderProgress() {
   const out = [];
   for (const g of F.progressGroups(programs.items)) {
     const cards = g.exercises.map((ex) => {
-      const hist = F.inRange(F.exerciseSessions(sessions.items, ex.id), ui.range, today);
+      const timed = F.isTimed(ex);
+      // Timed exercises chart their longest hold; sessions logged before a switch of kind are left out.
+      const metric = timed ? F.maxSecs : F.maxWeight;
+      const hist = F.inRange(F.exerciseSessions(sessions.items, ex.id), ui.range, today).filter((s) => metric(s.sets) > 0);
       if (!hist.length) return null;
-      const best = Math.max(...hist.map((s) => F.maxWeight(s.sets)));
+      const best = Math.max(...hist.map((s) => metric(s.sets)));
       return h('div', { class: 'fit-card' },
-        h('div', { class: 'fit-card-head' }, h('h3', {}, ex.name), h('span', { class: 'fit-last' }, `best ${best} kg · ${deps.plural(hist.length, 'session')}`)),
-        chart({ values: hist.map((s) => F.maxWeight(s.sets)), labels: hist.map((s) => fmtShort(s.date)), color: '--chart-lift', height: 120 }),
+        h('div', { class: 'fit-card-head' }, h('h3', {}, ex.name),
+          h('span', { class: 'fit-last' }, `best ${timed ? F.fmtDuration(best) : `${best} kg`} · ${deps.plural(hist.length, 'session')}${timed ? ' · seconds' : ''}`)),
+        chart({ values: hist.map((s) => metric(s.sets)), labels: hist.map((s) => fmtShort(s.date)), color: '--chart-lift', height: 120 }),
       );
     }).filter(Boolean);
     if (cards.length) out.push(h('h3', { class: 'fit-group' }, g.title), ...cards);
@@ -533,13 +563,18 @@ function openEditor() {
               oninput: (e) => { ex.name = e.target.value; },
               onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); addExercise(d); } },
             }),
+            kindToggle(F.isTimed(ex), (t) => {
+              // The same exercise in another day follows along, since they share one history.
+              for (const q of ed) for (const e of q.exercises) if (e.id === ex.id) { if (t) e.kind = 'time'; else delete e.kind; }
+              rebuild();
+            }, 'Log by'),
             h('button', { type: 'button', class: 'icon-btn', title: 'Remove exercise', 'aria-label': 'Remove exercise', onclick: () => { p.exercises.splice(i, 1); rebuild(); } }, '×'))),
           h('button', { type: 'button', class: 'linkish fit-add', onclick: () => addExercise(d) }, '+ Add exercise'))),
         h('button', {
           type: 'button', class: 'btn ghost fit-add-day',
           onclick: () => { ed.push({ id: newId('prog'), name: '', order: ed.length, exercises: [] }); addExercise(ed.length - 1); },
         }, '+ Add day'),
-        h('p', { class: 'muted small' }, 'A day named after a weekday (e.g. “Tuesday”) opens by itself on that day. Press Enter in an exercise to add the next one.'),
+        h('p', { class: 'muted small' }, 'A day named after a weekday (e.g. “Tuesday”) opens by itself on that day. Press Enter in an exercise to add the next one. Switch an exercise to Time for holds like planks: its sets then take a duration, with the weight optional.'),
       ),
       modalFoot(() => {
         // Blank rows left over from "+ Add" are dropped rather than saved as nameless entries.
@@ -589,7 +624,7 @@ function openRawData() {
             class: 'fit-raw-select', 'aria-label': 'Exercise',
             onchange: (e) => { exId = e.target.value; rebuild(); },
           }, exIds.map((id) => h('option', { value: id, selected: id === exId }, names[id] || `${id} (not in a split)`))),
-          h('div', { class: 'fit-raw fit-raw-head', 'aria-hidden': 'true' }, h('span', {}, 'Date'), h('span', {}, 'Sets (e.g. 75×5 / 80×3)'), h('span', {})),
+          h('div', { class: 'fit-raw fit-raw-head', 'aria-hidden': 'true' }, h('span', {}, 'Date'), h('span', {}, 'Sets (e.g. 75×5 / 80×3, or 45s / 20×1:30)'), h('span', {})),
           rows.ex[exId].map((r, i) => h('div', { class: 'fit-raw' },
             dateCell(r),
             h('input', { type: 'text', class: 'mono', value: r.text, placeholder: '75×5 / 80×3', 'aria-label': 'Sets', oninput: (e) => { r.text = e.target.value; } }),
